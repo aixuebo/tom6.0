@@ -1,0 +1,96 @@
+StandardEngine----Host(上面可以允许存放多个应用)----Context(代表 Servlet 的 Context,有servlet运行的基本环境)----Wrapper(就是Servlet实例,因为一个Context下有多个servlet)
+
+
+Container 包含Engine、Host、Context、Wrapper
+
+简单的 Tomcat 可以没有 Engine 和 Host。
+
+
+
+Catalina
+1.解析启动命令   -config conf/server.xml -nonaming start/stop
+2.解析server.xml配置文件,因此就最终获取到了Server,即StandardServer
+Server实现了Lifecycle和Service接口
+3.调用server的Lifecycle的initialize方法和start方法
+
+
+解析server.xml
+1.解析server,创建server对象,并且本地提供一个端口作为shutdown命令的服务----org.apache.catalina.core.StandardServer
+<Server port="8005" shutdown="SHUTDOWN">
+2.解析GlobalNamingResources标签,为server提供GlobalNamingResources服务
+  <GlobalNamingResources>
+    <Resource name="UserDatabase" auth="Container"
+              type="org.apache.catalina.UserDatabase"
+              description="User database that can be updated and saved"
+              factory="org.apache.catalina.users.MemoryUserDatabaseFactory"
+              pathname="conf/tomcat-users.xml" />
+  </GlobalNamingResources>
+3.解析Listener,为server添加Listener
+<Listener className="org.apache.catalina.core.AprLifecycleListener" SSLEngine="on" />
+4.解析Service标签,为server提供若干个Service服务----org.apache.catalina.core.StandardService
+---------
+以下内容为专门解析每一个service服务
+1.解析Listener标签,为每一个service服务提供监听
+2.解析Executor标签,为每一个service提供执行连接的连接池----org.apache.catalina.core.StandardThreadExecutor
+    <!--The connectors can use a shared executor, you can define one or more named thread pools-->
+    <Executor name="tomcatThreadPool" namePrefix="catalina-exec-" maxThreads="150" minSpareThreads="4"/>
+3.解析Server/Service/Connector标签,解析规则是找到两种带有属性的标签,一种是带有protocol,一种是带有executor---org.apache.catalina.connector.Connector实现类
+    <Connector port="8088" protocol="HTTP/1.1"
+               connectionTimeout="20000" 
+               redirectPort="8443" />
+    <Connector port="8443" protocol="HTTP/1.1" SSLEnabled="true"
+               maxThreads="150" scheme="https" secure="true"
+               clientAuth="false" sslProtocol="TLS" />
+    <Connector port="8009" protocol="AJP/1.3" redirectPort="8443" />
+    <Connector executor="tomcatThreadPool"
+               port="8080" protocol="HTTP/1.1" 
+               connectionTimeout="20000" 
+               redirectPort="8443" />
+即定义什么协议的连接请求,以及连接使用的连接池信息
+4.解析Server/Service/Connector/Listener,为每一个Connector分配监听器
+5.解析service下的Engine标签----org.apache.catalina.core.StandardEngine的实现类
+将该Engine添加到service的Container中,即service中只有一个容器,就是Engine
+6.配置Engine对象信息
+a.解析Cluster标签,对其增加setCluster方法,即设置org.apache.catalina.Cluster的实现类
+<Cluster className="org.apache.catalina.ha.tcp.SimpleTcpCluster"/>
+b.解析Listener标签,对Engine增加监听器
+c.解析Valve标签,对Engine增加org.apache.catalina.Valve的实现类
+<Valve className="org.apache.catalina.valves.RequestDumperValve"/>
+
+5.解析Server/Service/Engine/Host/ 因为Engine下面会有若干个Host ----org.apache.catalina.core.StandardHost实现类
+  将每一个host添加到Engine容器里面,使用addChild方法,参数是org.apache.catalina.Container
+a.解析Engine/Host/Alias标签,该标签的值调用addAlias方法,没有参数,即为host设置别名
+b.解析Engine/Host/Cluster标签,调用setCluster方法,参数是org.apache.catalina.Cluster
+c.解析Engine/Host/Listener标签
+d.解析value标签,定义org.apache.catalina.Valve的实现类
+        <Valve className="org.apache.catalina.authenticator.SingleSignOn" />
+	<Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"  prefix="localhost_access_log." suffix=".txt" pattern="common" resolveHosts="false"/>
+e.解析Engine/Host/Realm标签,调用setRealm方法,参数是org.apache.catalina.Realm
+f.解析Engine/Host/Realm/Realm标签,调用setRealm方法,参数是org.apache.catalina.Realm
+
+6.解析Server/Service/Engine/Host/Context标签,即每一个具体的应用,----org.apache.catalina.core.StandardContext的实现类
+a.解析Server/Service/Engine/Host/Context/InstanceListener标签,调用没有参数的addInstanceListener方法
+b.解析Listener标签
+c.解析Context/Loader标签,----org.apache.catalina.loader.WebappLoader的实现类,调用setLoader方法设置
+d.解析Context/Manager标签,org.apache.catalina.session.StandardManager实现类,调用setManager
+e.解析Context/Manager/Store标签,调用setStore方法
+f.解析Context/Parameter标签,org.apache.catalina.deploy.ApplicationParameter实现类
+ 解析Context/Parameter标签去添加真正的属性
+g.解析Context/Resources标签,org.apache.naming.resources.FileDirContext实现类,调用setResources方法
+h.解析Context/ResourceLink标签,org.apache.catalina.deploy.ContextResourceLink实现类,调用addResourceLink方法
+i.解析Context/Valve标签,
+j.解析Context/WatchedResource标签,调用没有参数的addWatchedResource方法
+k.解析Context/WrapperLifecycle标签,调用没有参数的addWrapperLifecycle方法
+l.解析Context/WrapperListener标签,调用没有参数的addWrapperListener方法
+m.解析Context/Realm标签,调用setRealm方法
+n.解析Context/Realm/Realm标签,调用setRealm方法
+
+6.解析Server/Service/Engine/Host/Cluster/和Server/Service/Engine/Cluster/关于集群的标签
+7.解析Server/GlobalNamingResources/和Server/Service/Engine/Host/Context标签,都会遇见相同的逻辑
+a.解析Ejb标签,---org.apache.catalina.deploy.ContextEjb的实现类,调用addEjb方法
+b.解析Environment标签,org.apache.catalina.deploy.ContextEnvironment实现类,调用addEnvironment方法
+c.解析LocalEjb标签,org.apache.catalina.deploy.ContextLocalEjb实现类,调用addLocalEjb方法
+d.解析Resource标签,org.apache.catalina.deploy.ContextResource实现类,调用addResource方法
+e.解析ResourceEnvRef标签,org.apache.catalina.deploy.ContextResourceEnvRef实现类,调用addResourceEnvRef方法
+f.解析ServiceRef标签,org.apache.catalina.deploy.ContextService实现类,调用addService方法
+g.解析Transaction标签,org.apache.catalina.deploy.ContextTransaction实现类,调用setTransaction方法
