@@ -41,8 +41,8 @@ import java.io.IOException;
  *
  * @author Craig R. McClanahan
  * @version $Id: Manager.java 939350 2010-04-29 15:36:29Z kkolinko $
+ * 管理每一个容器下的session信息,容器和Manager是一对一的关系,即容器里面持有Manager,Manager里面持有一个容器
  */
-
 public interface Manager {
 
 
@@ -393,6 +393,7 @@ public interface Manager {
       * This method will be invoked by the context/container on a periodic
       * basis and allows the manager to implement
       * a method that executes periodic tasks, such as expiring sessions etc.
+      * 该方法是context的container容器会周期的执行
       */
      public void backgroundProcess();
 

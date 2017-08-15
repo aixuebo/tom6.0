@@ -27,14 +27,21 @@ import java.util.EventListener;
      * the last servlet or the first filter in the chain.
      *
      * @since Servlet 2.4
+     * 
+     * 应用项目Context下每一个请求进来后,只要请求的资源合法,都会走该监听器
+     * 因此该监听器可以监听该项目的所有合法请求,比如请求的url等信息
      */
 
 
 public interface ServletRequestListener extends EventListener {
 
-    /** The request is about to go out of scope of the web application. */
+    /** The request is about to go out of scope of the web application. 
+     * 表示该web应用的一个请求走了
+     **/
     public void requestDestroyed ( ServletRequestEvent sre );
 
-    /** The request is about to come into scope of the web application. */
+    /** The request is about to come into scope of the web application. 
+     * 表示该web应用的一个请求来了
+     **/
     public void requestInitialized ( ServletRequestEvent sre );
 }

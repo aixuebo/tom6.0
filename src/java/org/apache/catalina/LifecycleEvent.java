@@ -30,6 +30,7 @@ import java.util.EventObject;
  *
  * @author Craig R. McClanahan
  * @version $Id: LifecycleEvent.java 939350 2010-04-29 15:36:29Z kkolinko $
+ * 封装一个监听事件
  */
 
 public final class LifecycleEvent
@@ -55,9 +56,9 @@ public final class LifecycleEvent
     /**
      * Construct a new LifecycleEvent with the specified parameters.
      *
-     * @param lifecycle Component on which this event occurred
-     * @param type Event type (required)
-     * @param data Event data (if any)
+     * @param lifecycle Component on which this event occurred 哪一个监听器发送的事件
+     * @param type Event type (required) 事件类型,比如是init,或者start等
+     * @param data Event data (if any) 具体通知的内容
      */
     public LifecycleEvent(Lifecycle lifecycle, String type, Object data) {
 

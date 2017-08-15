@@ -30,6 +30,7 @@ import org.apache.catalina.LifecycleListener;
  *
  * @author Craig R. McClanahan
  * @version $Id: LifecycleSupport.java 999945 2010-09-22 13:48:58Z markt $
+ * 生命周期对象的支持类
  */
 
 public final class LifecycleSupport {
@@ -44,6 +45,7 @@ public final class LifecycleSupport {
      *
      * @param lifecycle The Lifecycle component that will be the source
      *  of events that we fire
+     *  该类持有一个生命周期对象
      */
     public LifecycleSupport(Lifecycle lifecycle) {
 
@@ -64,6 +66,7 @@ public final class LifecycleSupport {
 
     /**
      * The set of registered LifecycleListeners for event notifications.
+     * 所有的监听者
      */
     private LifecycleListener listeners[] = new LifecycleListener[0];
     
@@ -83,6 +86,7 @@ public final class LifecycleSupport {
      * Add a lifecycle event listener to this component.
      *
      * @param listener The listener to add
+     * 添加一个监听者
      */
     public void addLifecycleListener(LifecycleListener listener) {
 
@@ -116,6 +120,7 @@ public final class LifecycleSupport {
      *
      * @param type Event type
      * @param data Event data
+     * 发送一个事件
      */
     public void fireLifecycleEvent(String type, Object data) {
 
@@ -138,7 +143,7 @@ public final class LifecycleSupport {
         }
         LifecycleEvent event = new LifecycleEvent(lifecycle, type, data);
         LifecycleListener interested[] = listeners;
-        for (int i = 0; i < interested.length; i++)
+        for (int i = 0; i < interested.length; i++) //为每一个监听者发送该事件
             interested[i].lifecycleEvent(event);
 
     }
@@ -148,6 +153,7 @@ public final class LifecycleSupport {
      * Remove a lifecycle event listener from this component.
      *
      * @param listener The listener to remove
+     * 删除一个监听者
      */
     public void removeLifecycleListener(LifecycleListener listener) {
 

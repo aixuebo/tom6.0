@@ -74,6 +74,7 @@ public class StandardService
 
     /**
      * The lifecycle event support for this component.
+     * 如何对该生命周期内的监听者处理
      */
     private LifecycleSupport lifecycle = new LifecycleSupport(this);
 
@@ -86,7 +87,7 @@ public class StandardService
 
     /**
      * The <code>Server</code> that owns this Service, if any.
-     * 父容器server
+     * 父容器server---因为一个service属于一个server,一个server有若干个service组成
      */
     private Server server = null;
 
@@ -331,7 +332,7 @@ public class StandardService
     public void removeConnector(Connector connector) {
 
         synchronized (connectors) {
-            int j = -1;
+            int j = -1;//查找要删除的Connector的序号
             for (int i = 0; i < connectors.length; i++) {
                 if (connector == connectors[i]) {
                     j = i;
@@ -340,7 +341,7 @@ public class StandardService
             }
             if (j < 0)
                 return;
-            if (started && (connectors[j] instanceof Lifecycle)) {
+            if (started && (connectors[j] instanceof Lifecycle)) {//说明已经star了,因此要对Connector进行stop处理
                 try {
                     ((Lifecycle) connectors[j]).stop();
                 } catch (LifecycleException e) {

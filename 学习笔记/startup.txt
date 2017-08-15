@@ -4,9 +4,67 @@ StandardEngine----Host(上面可以允许存放多个应用)----Context(代表 Servlet 的 Cont
 Container 包含Engine、Host、Context、Wrapper
 
 简单的 Tomcat 可以没有 Engine 和 Host。
+------------------------------------
+架构
+1.一个tomcat节点是一个server。
+2.一个server是由多个service服务组成的,通过server.xml就可以看出来
+3.一个service服务是由connect、container、log等组件组成的
+4.container是有层级关系的,比如优先是Server,然后是Host,然后是Context等
+
+------------------------------------
+一、server接口
+1.一个server提供若干个service服务,因此有增删改差service服务的方法
+2.一个server本身有一个小端口用于监听shutdown命令,一旦shutdown命令接收到了,则停止该tomcat节点上所有的service服务
+3.初始化该server
+4.获取该server的info信息
+5.返回全局的命名资源NamingResources
+二、service接口
+1.该service的info信息
+2.该service的name
+3.Container getContainer();该service所属的容器,因为一个service只持有一个Engine,因此Engine就是Container,因此这里容器就是Container
+4.Server getServer();表示该service属于哪个server
+5.该service可以提供很多种连接请求方式
+addConnector(Connector connector);删除、list等信息,可以知道有多少个连接
+6.对Connector的连接池的管理
+addExecutor(Executor ex);list、删除
+7.service的init初始化方法
 
 
+注意:
+1.一个service只有一个Container,而不是多个,因为Container是Engine,所以一个容器对应一个service
+2.但是service对应的Engine这个Container本身是有继承关系的,他里面可以有子子孙孙容器,虽然root就是一个Container,但是里面会详细展开成多个容器。
 
+因此就有了Container接口的定义
+三、Container接口
+1.容器的定义info信息 ---String getInfo();
+2.加载容器的loader---Loader getLoader();
+3.String getName() 获取容器的name
+4.Container getParent()获取容器的父容器
+5.对子容器的管理
+void addChild(Container child)、get、list、delete
+6.对监听者的管理
+addContainerListener(ContainerListener listener)、list、detele
+7.Manager getManager() 管理每一个容器下的session信息,容器和Manager是一对一的关系,即容器里面持有Manager,Manager里面持有一个容器
+8.Pipeline getPipeline() 用于管理插入的Value信息管道
+7.暂时不知道意义
+Object getMappingObject()
+Cluster getCluster();
+int getBackgroundProcessorDelay()
+Realm getRealm();
+DirContext getResources();
+void backgroundProcess()
+void invoke(Request request, Response response)
+logAccess(Request request, Response response, long time,boolean useDefault);
+AccessLog getAccessLog();
+8.全局属性
+a.addChild、removeChild
+b.addValve、removeValve
+c.addMapper、removeMapper
+
+四、Pipeline----将value传接起来
+参见详细Pipeline文档
+
+------------------------------------
 Catalina
 1.解析启动命令   -config conf/server.xml -nonaming start/stop
 2.解析server.xml配置文件,因此就最终获取到了Server,即StandardServer
@@ -94,3 +152,18 @@ d.解析Resource标签,org.apache.catalina.deploy.ContextResource实现类,调用addResou
 e.解析ResourceEnvRef标签,org.apache.catalina.deploy.ContextResourceEnvRef实现类,调用addResourceEnvRef方法
 f.解析ServiceRef标签,org.apache.catalina.deploy.ContextService实现类,调用addService方法
 g.解析Transaction标签,org.apache.catalina.deploy.ContextTransaction实现类,调用setTransaction方法
+
+
+
+注意三个关键文件:
+org.apache.catalina.startup.EngineConfig
+org.apache.catalina.startup.HostConfig
+org.apache.catalina.startup.ContextConfig
+分别是配置Host和Host/Context时候的配置文件
+
+
+Filter流程------------------------------------
+xxxx
+chain.doFilter
+yyy
+这样的调用方式,是说先执行xxx,然后执行下一个过滤器,然后过滤器都执行完了,会在调用chain.doFilter的时候会进行servlet.service方法调用,然后在进行yyy,即yyy是在servlet方法执行后执行的

@@ -46,6 +46,65 @@ import org.apache.tomcat.util.log.SystemLogHandler;
  *
  * @author Craig R. McClanahan
  * @version $Id: StandardWrapperValve.java 939336 2010-04-29 15:00:41Z kkolinko $
+ * 
+ * Wrapper容器级别的基础value做了什么工作---因为Wrapper控制的是servlet,因此该容器是最核心的,但是他只是影响了一个servlet而已,不会影响很大范围的其他servlet
+1.统计信息:以下在多线程环境下统计,因此是volatile
+    private volatile long processingTime;//处理所有的servlet的总时间
+    private volatile long maxTime;//处理servlet的最长的时间是多少
+    private volatile long minTime = Long.MAX_VALUE;//处理servlet的最短的时间是多少
+    private volatile int requestCount;//一共多少次servlet被请求了
+    private volatile int errorCount;//失败的servlet请求次数
+2.exception(Request request, Response response,Throwable exception) 在处理servlet的过程中出现异常,如何处理
+    	request.setAttribute(Globals.EXCEPTION_ATTR, exception);//设置异常对象到javax.servlet.error.exception的key中
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);//设置状态码
+3.invoke(Request request, Response response)
+a.requestCount++;//记录一共多少次servlet被请求了
+b.获取servlet容器的父容器,即项目对象所在容器Context,判断该容器是否可用,如果不可用,说项目都不可用,肯定有问题
+response.sendError 设置500状态码
+c.如果项目本身是可用的,则判断该servlet是否可用,wrapper.isUnavailable()
+如果servlet不可用.则看long available = wrapper.getAvailable();servlet的生命期,如果是一个long值,则告诉客户端你过一会再来请求我,可能就好了。
+response.setDateHeader("Retry-After", available);
+response.sendError(503)
+如果available是long的max,说明该页面一直都会不存在,所以直接就返回404,告诉客户端以后你就别访问我了
+response.sendError(504)
+d.servlet = wrapper.allocate();//分配一个servlet实例,该过程可能是分配的servlet要确保线程安全
+如果创建过程中失败,则调用第2步骤
+e.对CometProcessor这种servlet单独实现的逻辑,暂时不懂什么意思,后续再研究
+f.设置分发信息
+request.setAttribute(ApplicationFilterFactory.DISPATCHER_REQUEST_PATH_ATTR,request.getRequestPathMB());//设置要发送给哪个servlet的url----org.apache.catalina.core.DISPATCHER_REQUEST_PATH
+request.setAttribute(ApplicationFilterFactory.DISPATCHER_TYPE_ATTR,REQUEST);//说明分发类型是正常的request请求分发----org.apache.catalina.core.DISPATCHER_TYPE
+g.创建filter过滤器链条对象
+ApplicationFilterFactory factory = ApplicationFilterFactory.getInstance();
+ApplicationFilterChain filterChain = factory.createFilterChain(request, wrapper, servlet);
+h.request.setComet(false); 意义不明
+i.String jspFile = wrapper.getJspFile();获取该servlet是否是jsp文件
+            if (jspFile != null)
+            	request.setAttribute(Globals.JSP_FILE_ATTR, jspFile);
+            else
+            	request.removeAttribute(Globals.JSP_FILE_ATTR);
+j.filterChain.doFilter(request.getRequest(), response.getResponse());
+ 该方法执行filter以及servlet的service方法
+k.filterChain.release(); 释放该filter内容
+l.wrapper.deallocate(servlet);销毁该servlet
+m.如果servlet不可用,则将其从加载器中卸载掉
+      if ((servlet != null) &&
+                (wrapper.getAvailable() == Long.MAX_VALUE)) {
+                wrapper.unload();
+            }
+n.统计执行所有servlet的总时间、最大事件和最小时间
+        long time=t2-t1;//处理的总事件
+        processingTime += time;
+        if( time > maxTime) maxTime=time;
+        if( time < minTime) minTime=time;
+
+4.event(Request request, Response response, CometEvent event) 同invoke逻辑一样
+
+总结:
+1.统计servlet的执行总次数以及总时间等信息
+2.创建servlet实例,执行servlet中init方法,过滤器方法 以及service方法,以及销毁方法
+可见每一个servlet生命周期
+3.出现异常的时候,将异常信息设置到request中,由上一次Context或者Host处理异常信息
+4.该类存在的意义就是可以自定义一些value切入进来,此时的request和response可以监控该servlet的请求
  */
 
 final class StandardWrapperValve
@@ -57,10 +116,11 @@ final class StandardWrapperValve
     // Some JMX statistics. This vavle is associated with a StandardWrapper.
     // We expose the StandardWrapper as JMX ( j2eeType=Servlet ). The fields
     // are here for performance.
-    private volatile long processingTime;
-    private volatile long maxTime;
-    private volatile long minTime = Long.MAX_VALUE;
-    private volatile int requestCount;
+	//以下在多线程环境下统计,因此是volatile
+    private volatile long processingTime;//处理所有的servlet的总时间
+    private volatile long maxTime;//处理servlet的最长的时间是多少
+    private volatile long minTime = Long.MAX_VALUE;//处理servlet的最短的时间是多少
+    private volatile int requestCount;//一共多少次servlet被请求了
     private volatile int errorCount;
 
 
@@ -89,11 +149,11 @@ final class StandardWrapperValve
         throws IOException, ServletException {
 
         // Initialize local variables we may need
-        boolean unavailable = false;
+        boolean unavailable = false;//true表示该servlet不能用,比如所属的项目context不可用
         Throwable throwable = null;
         // This should be a Request attribute...
         long t1=System.currentTimeMillis();
-        requestCount++;
+        requestCount++;//记录一共多少次servlet被请求了
         StandardWrapper wrapper = (StandardWrapper) getContainer();
         Servlet servlet = null;
         Context context = (Context) wrapper.getParent();
@@ -102,31 +162,31 @@ final class StandardWrapperValve
         if (!context.getAvailable()) {
         	response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                            sm.getString("standardContext.isUnavailable"));
-            unavailable = true;
+            unavailable = true;//设置失效
         }
 
         // Check for the servlet being marked unavailable
-        if (!unavailable && wrapper.isUnavailable()) {
+        if (!unavailable && wrapper.isUnavailable()) {//说明此时项目可用,但是servlet本身是不可用的
             container.getLogger().info(sm.getString("standardWrapper.isUnavailable",
                     wrapper.getName()));
             long available = wrapper.getAvailable();
-            if ((available > 0L) && (available < Long.MAX_VALUE)) {
+            if ((available > 0L) && (available < Long.MAX_VALUE)) {//说明该servlet是有有效期的,说明在一段期间内他是不存在的,后期可以继续请求我,我可能存在
                 response.setDateHeader("Retry-After", available);
                 response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                         sm.getString("standardWrapper.isUnavailable",
                                 wrapper.getName()));
-            } else if (available == Long.MAX_VALUE) {
+            } else if (available == Long.MAX_VALUE) {//说明servlet没有有效期,直接返回404就好,根本不存在
                 response.sendError(HttpServletResponse.SC_NOT_FOUND,
                         sm.getString("standardWrapper.notFound",
                                 wrapper.getName()));
             }
-            unavailable = true;
+            unavailable = true;//设置失效
         }
 
         // Allocate a servlet instance to process this request
         try {
             if (!unavailable) {
-                servlet = wrapper.allocate();
+                servlet = wrapper.allocate();//分配一个servlet实例
             }
         } catch (UnavailableException e) {
             container.getLogger().error(
@@ -147,13 +207,13 @@ final class StandardWrapperValve
             container.getLogger().error(sm.getString("standardWrapper.allocateException",
                              wrapper.getName()), StandardWrapper.getRootCause(e));
             throwable = e;
-            exception(request, response, e);
+            exception(request, response, e);//创建servlet实例失败
             servlet = null;
         } catch (Throwable e) {
             container.getLogger().error(sm.getString("standardWrapper.allocateException",
                              wrapper.getName()), e);
             throwable = e;
-            exception(request, response, e);
+            exception(request, response, e);//创建servlet实例失败
             servlet = null;
         }
 
@@ -187,10 +247,10 @@ final class StandardWrapperValve
         }
         request.setAttribute
             (ApplicationFilterFactory.DISPATCHER_TYPE_ATTR,
-             ApplicationFilterFactory.REQUEST_INTEGER);
+             ApplicationFilterFactory.REQUEST_INTEGER);//说明分发类型是正常的request请求分发
         request.setAttribute
             (ApplicationFilterFactory.DISPATCHER_REQUEST_PATH_ATTR,
-             requestPathMB);
+             requestPathMB);//设置请求路径
         // Create the filter chain for this request
         ApplicationFilterFactory factory =
             ApplicationFilterFactory.getInstance();
@@ -204,7 +264,7 @@ final class StandardWrapperValve
         try {
             String jspFile = wrapper.getJspFile();
             if (jspFile != null)
-            	request.setAttribute(Globals.JSP_FILE_ATTR, jspFile);
+            	request.setAttribute(Globals.JSP_FILE_ATTR, jspFile);//请求的servlet是一个jsp文件,因此该key对应的value就是jsp文件
             else
             	request.removeAttribute(Globals.JSP_FILE_ATTR);
             if ((servlet != null) && (filterChain != null)) {
@@ -289,7 +349,7 @@ final class StandardWrapperValve
             if (request.isComet()) {
                 // If this is a Comet request, then the same chain will be used for the
                 // processing of all subsequent events.
-                filterChain.reuse();
+                filterChain.reuse();//说明这个是Comet请求,filter链条将要重新走一下
             } else {
                 filterChain.release();
             }
@@ -298,7 +358,7 @@ final class StandardWrapperValve
         // Deallocate the allocated servlet instance
         try {
             if (servlet != null) {
-                wrapper.deallocate(servlet);
+                wrapper.deallocate(servlet);//一个servlet执行完毕之后,对该servlet进行销毁
             }
         } catch (Throwable e) {
             container.getLogger().error(sm.getString("standardWrapper.deallocateException",
@@ -314,7 +374,7 @@ final class StandardWrapperValve
         try {
             if ((servlet != null) &&
                 (wrapper.getAvailable() == Long.MAX_VALUE)) {
-                wrapper.unload();
+                wrapper.unload();//销毁该servlet
             }
         } catch (Throwable e) {
             container.getLogger().error(sm.getString("standardWrapper.unloadException",
@@ -326,7 +386,7 @@ final class StandardWrapperValve
         }
         long t2=System.currentTimeMillis();
 
-        long time=t2-t1;
+        long time=t2-t1;//处理的总事件
         processingTime += time;
         if( time > maxTime) maxTime=time;
         if( time < minTime) minTime=time;
@@ -518,8 +578,8 @@ final class StandardWrapperValve
      */
     private void exception(Request request, Response response,
                            Throwable exception) {
-    	request.setAttribute(Globals.EXCEPTION_ATTR, exception);
-        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    	request.setAttribute(Globals.EXCEPTION_ATTR, exception);//设置异常对象到javax.servlet.error.exception的key中
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);//设置状态码
 
     }
 

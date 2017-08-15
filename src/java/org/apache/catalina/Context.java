@@ -751,6 +751,7 @@ public interface Context extends Container {
      * if any; otherwise return <code>null</code>.
      *
      * @param errorCode Error code to look up
+     * 通过状态号码找到对应的错误页面
      */
     public ErrorPage findErrorPage(int errorCode);
 

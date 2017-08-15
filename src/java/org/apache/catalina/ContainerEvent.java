@@ -27,6 +27,7 @@ import java.util.EventObject;
  *
  * @author Craig R. McClanahan
  * @version $Id: ContainerEvent.java 939350 2010-04-29 15:36:29Z kkolinko $
+ * 容器发生的事件
  */
 
 public final class ContainerEvent
@@ -35,18 +36,21 @@ public final class ContainerEvent
 
     /**
      * The Container on which this event occurred.
+     * 哪个容器产生的事件
      */
     private Container container = null;
 
 
     /**
      * The event data associated with this event.
+     * 数据真实内容
      */
     private Object data = null;
 
 
     /**
      * The event type this instance represents.
+     * 事件类型
      */
     private String type = null;
 

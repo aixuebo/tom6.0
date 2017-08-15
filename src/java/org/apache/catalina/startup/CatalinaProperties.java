@@ -31,15 +31,15 @@ import java.util.Properties;
  *
  * @author Remy Maucherat
  * @version $Id: CatalinaProperties.java 939353 2010-04-29 15:50:43Z kkolinko $
+ *      * 1.优先读取System.getProperty("catalina.config");设置的配置文件
+     * 2.其次读取/conf/catalina.properties
  */
-
 public class CatalinaProperties {
 
 
     // ------------------------------------------------------- Static Variables
 
-    private static org.apache.juli.logging.Log log=
-        org.apache.juli.logging.LogFactory.getLog( CatalinaProperties.class );
+    private static org.apache.juli.logging.Log log = org.apache.juli.logging.LogFactory.getLog( CatalinaProperties.class );
 
     private static Properties properties = null;
 
@@ -79,6 +79,8 @@ public class CatalinaProperties {
 
     /**
      * Load properties.
+     * 1.优先读取System.getProperty("catalina.config");设置的配置文件
+     * 2.其次读取/conf/catalina.properties
      */
     private static void loadProperties() {
 
@@ -155,6 +157,7 @@ public class CatalinaProperties {
     
     /**
      * Get the value of the catalina.base environment variable.
+     * 
      */
     private static String getCatalinaBase() {
         return System.getProperty("catalina.base", getCatalinaHome());

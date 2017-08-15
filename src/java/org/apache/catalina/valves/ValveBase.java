@@ -53,6 +53,11 @@ import org.apache.juli.logging.LogFactory;
  *
  * @author Craig R. McClanahan
  * @version $Id: ValveBase.java 939353 2010-04-29 15:50:43Z kkolinko $
+ * 
+1.protected Container container = null; 知道该value是哪个容器的value,属于四种容器的哪一种,并且哪一个实例对象的value
+2.Valve next = null 获取下一个value是谁,这个在StandardPipeline实现类的addValve中创建新的value的时候维护的
+3.invoke(Request request, Response response)子类具体实现
+4.event(Request request, Response response, CometEvent event)子类具体实现
  */
 
 public abstract class ValveBase

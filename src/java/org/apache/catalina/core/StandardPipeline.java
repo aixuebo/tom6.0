@@ -49,6 +49,19 @@ import org.apache.tomcat.util.modeler.Registry;
  * by which per-thread state is maintained will need to be modified.
  *
  * @author Craig R. McClanahan
+ * 
+ * 
+1.protected Container container = null;因为一个管道肯定属于一个容器的,即一个容器拥有一个管道,因此管道对象需要持有容器对象
+2.监听器相关的增删改差
+3.getBasic/setBasic 设置和获取基础value
+a.设置属性this.basic = valve;,即设置基础value是谁
+b.如果该管道不仅仅有基础value,还已经添加了其他value,则递归所有的value的nextValue方法,找到最后一个value,将基础value赋值给最后一个value的nextValue上
+4.void addValve(Valve valve) 添加一个value
+比如连续调用addValue3次,分别添加value1,value2,value3,则最终结果是
+first就是value1,然后value1的nextValue是value2,value2的nextValue是value3,value3的nextValue是basicValue
+5.Valve[] getValves() 按照value的添加顺序,返回所有的value集合,最后一个是basicValue
+6.可以允许删除一个Value
+7.Valve getFirst() 获取第一个value
  */
 
 public class StandardPipeline
@@ -395,6 +408,8 @@ public class StandardPipeline
             }
         }
 
+        //a.设置属性this.basic = valve;,即设置基础value是谁
+        //b.如果该管道不仅仅有基础value,还已经添加了其他value,则递归所有的value的nextValue方法,找到最后一个value,将基础value赋值给最后一个value的nextValue上
         // Update the pipeline
         Valve current = first;
         while (current != null) {
@@ -428,6 +443,8 @@ public class StandardPipeline
      *  associated with this Container
      * @exception IllegalStateException if the specified Valve is already
      *  associated with a different Container
+比如连续调用addValue3次,分别添加value1,value2,value3,则最终结果是
+first就是value1,然后value1的nextValue是value2,value2的nextValue是value3,value3的nextValue是basicValue
      */
     public void addValve(Valve valve) {
     

@@ -71,6 +71,12 @@ public interface Filter {
 	* 4. a) <strong>Either</strong> invoke the next entity in the chain using the FilterChain object (<code>chain.doFilter()</code>), <br>   
 	** 4. b) <strong>or</strong> not pass on the request/response pair to the next entity in the filter chain to block the request processing<br>
 	** 5. Directly set headers on the response after invocation of the next entity in the filter chain.
+	*
+	*
+	* xxxx
+	* chain.doFilter
+	* yyy
+	* 这样的调用方式,是说先执行xxx,然后执行下一个过滤器,然后过滤器都执行完了,会在调用chain.doFilter的时候会进行servlet.service方法调用,然后在进行yyy,即yyy是在servlet方法执行后执行的
 	**/
     public void doFilter ( ServletRequest request, ServletResponse response, FilterChain chain ) throws IOException, ServletException;
 

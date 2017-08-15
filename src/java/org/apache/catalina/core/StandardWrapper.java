@@ -353,6 +353,7 @@ servlet instanceof SingleThreadModel 是否是该实例
      * an SC_NOT_FOUND error.  If this date/time is in the future, any request for
      * this servlet will return an SC_SERVICE_UNAVAILABLE error.  If it is zero,
      * the servlet is currently available.
+     * 多久以后你可以再次访问我,可能我就变成有效的了
      */
     public long getAvailable() {
 

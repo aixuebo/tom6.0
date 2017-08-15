@@ -46,6 +46,36 @@ import org.apache.tomcat.util.buf.MessageBytes;
  *
  * @author Craig R. McClanahan
  * @version $Id: StandardContextValve.java 939336 2010-04-29 15:00:41Z kkolinko $
+ * 
+ * Context容器级别的基础value做了什么工作
+1.StandardContext context = null; 该value属于哪个容器.并且一定该容器是StandardContext类型的容器
+2.void invoke(Request request, Response response)
+a.不允许访问/META-INF/和/WEB-INF下面的资源文件，如果访问,则直接返回找不到该文件即可
+MessageBytes requestPathMB = request.getRequestPathMB().startsWithIgnoreCase("/META-INF/", 0)
+b.获取对应的servlet  Wrapper wrapper = request.getWrapper();
+c.获取该项目监控的所有的事件
+Object instances[] = context.getApplicationEventListeners();
+从事件中查找到ServletRequestListener监听器集合,调用requestInitialized方法,将该请求发送给监听器
+表示该web应用的一个请求来了
+d.对servlet进行管道处理
+wrapper.getPipeline().getFirst().invoke(request, response);
+e.servlet管道处理后,对ServletRequestListener事件的requestDestroyed方法进行调用.表示该web应用的一个请求走了
+
+3.event(Request request, Response response, CometEvent event) 
+方法与invoke逻辑相同,省略
+
+
+注意:
+ServletRequestListener接口
+    public void requestDestroyed ( ServletRequestEvent sre ); 表示该web应用的一个请求走了
+    public void requestInitialized ( ServletRequestEvent sre ); 表示该web应用的一个请求来了
+
+总结:
+1.基本上没做什么工作,就是找到对应的servlet(wrapper),走servlet(wrapper)的流程而已。
+2.限制了资源的请求访问内容,不允许访问/META-INF/和/WEB-INF下面的资源文件
+3.在servlet管道处理前后,对该应用项目级别的请求监控进行处理
+即进入到该项目的每一个请求的进/出都可以做跟踪
+3.该类存在的意义就是可以自定义一些value切入进来,此时的request和response可以监控一个项目下所有的servlet
  */
 
 final class StandardContextValve
@@ -115,6 +145,7 @@ final class StandardContextValve
         throws IOException, ServletException {
 
         // Disallow any direct access to resources under WEB-INF or META-INF
+    	//不允许访问/META-INF/和/WEB-INF下面的资源文件，如果访问,则直接返回找不到该文件即可
         MessageBytes requestPathMB = request.getRequestPathMB();
         if ((requestPathMB.startsWithIgnoreCase("/META-INF/", 0))
             || (requestPathMB.equalsIgnoreCase("/META-INF"))
@@ -158,11 +189,12 @@ final class StandardContextValve
             }
         }
 
-        // Normal request processing
+        // Normal request processing 获取该项目监控的所有的事件
         Object instances[] = context.getApplicationEventListeners();
 
         ServletRequestEvent event = null;
 
+        //只要该项目下监控的ServletRequestListener事件,对其进行requestInitialized操作,即表示该web应用的一个请求来了
         if ((instances != null) 
                 && (instances.length > 0)) {
             event = new ServletRequestEvent
@@ -177,7 +209,7 @@ final class StandardContextValve
                 ServletRequestListener listener =
                     (ServletRequestListener) instances[i];
                 try {
-                    listener.requestInitialized(event);
+                    listener.requestInitialized(event);//表示该web应用的一个请求来了
                 } catch (Throwable t) {
                     container.getLogger().error(sm.getString("standardContext.requestListener.requestInit",
                                      instances[i].getClass().getName()), t);
@@ -187,9 +219,11 @@ final class StandardContextValve
                 }
             }
         }
-
+        
+        //对servlet进行管道处理
         wrapper.getPipeline().getFirst().invoke(request, response);
 
+        //servlet管道处理后,对ServletRequestListener事件的requestDestroyed方法进行调用.表示该web应用的一个请求走了
         if ((instances !=null ) &&
                 (instances.length > 0)) {
             // create post-service event

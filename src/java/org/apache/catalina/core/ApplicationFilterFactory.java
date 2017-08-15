@@ -91,8 +91,9 @@ public final class ApplicationFilterFactory {
      * execution of the specified servlet instance.  If we should not execute
      * a filter chain at all, return <code>null</code>.
      *
-     * @param request The servlet request we are processing
-     * @param servlet The servlet instance to be wrapped
+     * @param request The servlet request we are processing 原始的请求对象
+     * @param wrapper 本次封装servlet的wrapper容器
+     * @param servlet The servlet instance to be wrapped 要请求的servlet对象
      * 创建一个filter链表
      */
     public ApplicationFilterChain createFilterChain

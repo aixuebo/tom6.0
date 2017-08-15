@@ -61,12 +61,14 @@ public final class Globals {
 
     /**
      * Request dispatcher state.
+     * 比如 出现response错误码,则跳转到错误页面,该key对应的value就是错误类型原因导致的跳转
      */
     public static final String DISPATCHER_TYPE_ATTR = 
         "org.apache.catalina.core.DISPATCHER_TYPE";//请求类型dispatcher
 
     /**
      * Request dispatcher path.
+     * 比如 出现response错误码,则跳转到错误页面,该key对应的value就是错误地址url
      */
     public static final String DISPATCHER_REQUEST_PATH_ATTR = 
         "org.apache.catalina.core.DISPATCHER_REQUEST_PATH";//请求的路径
@@ -91,6 +93,7 @@ public final class Globals {
     /**
      * The request attribute under which we forward a Java exception
      * (as an object of type Throwable) to an error page.
+     * 请求过程中是否有异常,返回异常对象进行绑定该key
      */
     public static final String EXCEPTION_ATTR =
         "javax.servlet.error.exception";
@@ -99,6 +102,7 @@ public final class Globals {
     /**
      * The request attribute under which we forward the request URI
      * (as an object of type String) of the page on which an error occurred.
+     * 请求什么url的时候出现的错误
      */
     public static final String EXCEPTION_PAGE_ATTR =
         "javax.servlet.error.request_uri";
@@ -115,6 +119,7 @@ public final class Globals {
     /**
      * The request attribute under which we forward an HTTP status message
      * (as an object of type STring) to an error page.
+     * 如果response返回的错误码,此时存储对应的错误信息文字
      */
     public static final String ERROR_MESSAGE_ATTR =
         "javax.servlet.error.message";
@@ -133,6 +138,7 @@ public final class Globals {
      * The request attribute under which we expose the value of the
      * <code>&lt;jsp-file&gt;</code> value associated with this servlet,
      * if any.
+     * 请求的servlet是一个jsp文件,因此该key对应的value就是jsp文件
      */
     public static final String JSP_FILE_ATTR =
         "org.apache.catalina.jsp_file";
@@ -260,6 +266,7 @@ public final class Globals {
     /**
      * The request attribute under which we forward a servlet name to
      * an error page.
+     * 说明在请求哪个servlet的时候出现的错误
      */
     public static final String SERVLET_NAME_ATTR =
         "javax.servlet.error.servlet_name";
@@ -298,6 +305,7 @@ public final class Globals {
     /**
      * The request attribute under which we forward an HTTP status code
      * (as an object of type Integer) to an error page.
+     * 存储response返回的状态码
      */
     public static final String STATUS_CODE_ATTR =
         "javax.servlet.error.status_code";
@@ -342,6 +350,7 @@ public final class Globals {
     /**
      * The master flag which controls strict servlet specification 
      * compliance.
+     * 是否严格要求servlet合规
      */
     public static final boolean STRICT_SERVLET_COMPLIANCE =
         Boolean.valueOf(System.getProperty("org.apache.catalina.STRICT_SERVLET_COMPLIANCE", "false")).booleanValue();

@@ -32,8 +32,19 @@ import org.apache.catalina.connector.Connector;
  *
  * @author Craig R. McClanahan
  * @version $Id: Service.java 939350 2010-04-29 15:36:29Z kkolinko $
+ * 
+ * 提供功能
+   1.该service的info信息
+   2.该service的name
+   3.Container getContainer();该service所属的容器,因为一个service只持有一个Engine,因此Engine就是Container,因此这里容器就是Container
+   4.Server getServer();表示该service属于哪个server
+   5.该service可以提供很多种连接请求方式
+     addConnector(Connector connector);删除、list等信息,可以知道有多少个连接
+   6.对Connector的连接池的管理
+   addExecutor(Executor ex);list、删除
+   7.service的init初始化方法
+      
  */
-
 public interface Service {
 
     // ------------------------------------------------------------- Properties

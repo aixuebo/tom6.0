@@ -182,6 +182,14 @@ final class ApplicationFilterChain implements FilterChain, CometFilterChain {
      * @exception ServletException if a servlet exception occurs
      * 该方法只是执行一个filter
      * 每执行一次该方法,则选择一个filter进行执行,即有多少个filter,则执行多少次该方法
+     * 
+     * 因为每一个filter执行完后,都会调用FilterChain.doFilter方法,因此就相当于又一次调用该方法,进行下一个filter处理了
+     * 
+     * 
+     xxxx
+	chain.doFilter
+	yyy
+	这样的调用方式,是说先执行xxx,然后执行下一个过滤器,然后过滤器都执行完了,会在调用chain.doFilter的时候会进行servlet.service方法调用,然后在进行yyy,即yyy是在servlet方法执行后执行的
      */
     public void doFilter(ServletRequest request, ServletResponse response)
         throws IOException, ServletException {

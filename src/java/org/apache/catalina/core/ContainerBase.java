@@ -820,7 +820,7 @@ public abstract class ContainerBase
                 }
             }
 
-            fireContainerEvent(ADD_CHILD_EVENT, child);
+            fireContainerEvent(ADD_CHILD_EVENT, child);//产生一个事件,说添加了一个子容器
         }
 
     }

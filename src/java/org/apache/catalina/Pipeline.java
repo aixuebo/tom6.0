@@ -37,6 +37,16 @@ package org.apache.catalina;
  * @author Craig R. McClanahan
  * @author Peter Donald
  * @version $Id: Pipeline.java 939350 2010-04-29 15:36:29Z kkolinko $
+ * 
+ * 表示一个管道,操作各种value插件,每一个容器都可以插入若干个value插件
+ * 先执行插入的value插件,最后执行basicValue
+ * 
+ * 基本功能:
+   1.获取基本value  Valve getBasic()
+   2.对value的管理
+    addValve(Valve valve) 新增、删除、list
+   3.获取第一个value  
+   
  */
 
 public interface Pipeline {

@@ -50,6 +50,56 @@ import org.apache.juli.logging.LogFactory;
  * @author Craig R. McClanahan
  * @author Remy Maucherat
  * @version $Id: StandardHostValve.java 939336 2010-04-29 15:00:41Z kkolinko $
+ * 
+ * 
+ * Host级别的基础value做了什么工作
+ * 
+1.void invoke(Request request, Response response) 和 event(Request request, Response response, CometEvent event)方法逻辑一样
+a.找到请求对应的Context项目对象
+Context context = request.getContext();
+b.调用context的管道处理请求
+context.getPipeline().getFirst().invoke(request, response);
+c.当管道处理请求后,继续做一些事儿,注意测试servlet都已经全部请求回来了,因此主要的还是对response做很多处理,以及记录请求时间等操作
+d.request.getSession(false); 为请求创建session,目的是符合servlet规范
+e.response.setSuspended(false);
+f.Throwable t = (Throwable) request.getAttribute(Globals.EXCEPTION_ATTR);获取请求处理中是否有异常,返回异常对象
+g.是处理异常,还是处理状态
+        if (t != null) {
+            throwable(request, response, t);
+        } else {
+            status(request, response);
+        }
+h.继续给其他Host的value处理
+
+3.status(Request request, Response response) 说明程序正常请求结束.没有出现异常
+a.获取返回码int statusCode = response.getStatus();
+b.Context context = request.getContext(); 获取conext项目对象
+c.if (!response.isError()) return 如果response返回的没有异常,则不再处理该任务了,说明完全正确
+d.以下内容说明response返回的是一个异常状态码
+e.通过状态号码找到对应的错误页面
+ErrorPage errorPage = context.findErrorPage(statusCode);
+f.设置属性信息
+request.setAttribute(Globals.STATUS_CODE_ATTR,new Integer(statusCode));//存储response返回的状态码----javax.servlet.error.status_code
+request.setAttribute(Globals.ERROR_MESSAGE_ATTR, message);//如果response返回的错误码,此时存储对应的错误信息文字---javax.servlet.error.message
+request.setAttribute(ApplicationFilterFactory.DISPATCHER_REQUEST_PATH_ATTR,errorPage.getLocation());//比如 出现response错误码,则跳转到错误页面,该key对应的value就是错误地址url----org.apache.catalina.core.DISPATCHER_REQUEST_PATH
+request.setAttribute(ApplicationFilterFactory.DISPATCHER_TYPE_ATTR,new Integer(ApplicationFilterFactory.ERROR));//比如 出现response错误码,则跳转到错误页面,该key对应的value就是错误类型原因导致的跳转----org.apache.catalina.core.DISPATCHER_TYPE
+因为上面是可能要重定向到其他页面的,所以都要设置在request属性里面
+
+Wrapper wrapper = request.getWrapper();找到对应的servlet
+request.setAttribute(Globals.SERVLET_NAME_ATTR,wrapper.getName());//说明在请求哪个servlet的时候出现的错误---javax.servlet.error.servlet_name
+request.setAttribute(Globals.EXCEPTION_PAGE_ATTR,request.getRequestURI());//请求什么url的时候出现的错误----javax.servlet.error.request_uri
+custom(request, response, errorPage) 内部跳转到错误页面,使用include或者forward 内部跳转到错误页面
+
+4.throwable(Request request, Response response,Throwable throwable)  处理请求过程中出现异常的情况
+a.Context context = request.getContext();获取项目对象
+b.找到异常对应的错误页面,内部跳转到错误页面即可,该操作与status中f步骤差不多
+
+总结:
+1.基本上没做什么工作,就是找到对应的conext,走conext的流程而已。
+2.出现异常的时候,或者定义好的错误页面的时候,跳转到错误页面
+3.该类存在的意义就是可以自定义一些value切入进来,此时的request和response可以监控该host下所有的项目，所有servlet的都可以被监控到
+
+ * 
  */
 
 final class StandardHostValve
@@ -167,6 +217,7 @@ final class StandardHostValve
         Context context = request.getContext();
 
         // Bind the context CL to the current thread
+        //因为要接下来去Context的value,因此要切换成Context的类加载器
         if( context.getLoader() != null ) {
             // Not started - it should check for availability first
             // This should eventually move to Engine, it's generic.
@@ -179,6 +230,8 @@ final class StandardHostValve
 
         // Access a session (if present) to update last accessed time, based on a
         // strict interpretation of the specification
+        //是否严格要求servlet合规
+        //为用户创建session对象
         if (Globals.STRICT_SERVLET_COMPLIANCE) {
             request.getSession(false);
         }
@@ -186,6 +239,7 @@ final class StandardHostValve
         // Error page processing
         response.setSuspended(false);
 
+        //确定请求过程中是否有异常,返回异常对象进行绑定该key
         Throwable t = (Throwable) request.getAttribute(Globals.EXCEPTION_ATTR);
 
         if (t != null) {
@@ -194,6 +248,7 @@ final class StandardHostValve
             status(request, response);
         }
 
+        //因为要接下来去Host的其他value,因此要切换成host的类加载器
         // Restore the context classloader
         Thread.currentThread().setContextClassLoader
             (StandardHostValve.class.getClassLoader());
@@ -316,29 +371,30 @@ final class StandardHostValve
         if (!response.isError())
             return;
 
+        //通过状态号码找到对应的错误页面
         ErrorPage errorPage = context.findErrorPage(statusCode);
         if (errorPage != null) {
             response.setAppCommitted(false);
             request.setAttribute(Globals.STATUS_CODE_ATTR,
-                              new Integer(statusCode));
+                              new Integer(statusCode));//存储response返回的状态码----javax.servlet.error.status_code
 
             String message = response.getMessage();
             if (message == null)
                 message = "";
-            request.setAttribute(Globals.ERROR_MESSAGE_ATTR, message);
+            request.setAttribute(Globals.ERROR_MESSAGE_ATTR, message);//如果response返回的错误码,此时存储对应的错误信息文字---javax.servlet.error.message
             request.setAttribute
                 (ApplicationFilterFactory.DISPATCHER_REQUEST_PATH_ATTR,
-                 errorPage.getLocation());
+                 errorPage.getLocation());//比如 出现response错误码,则跳转到错误页面,该key对应的value就是错误地址url----org.apache.catalina.core.DISPATCHER_REQUEST_PATH
             request.setAttribute(ApplicationFilterFactory.DISPATCHER_TYPE_ATTR,
-                              new Integer(ApplicationFilterFactory.ERROR));
+                              new Integer(ApplicationFilterFactory.ERROR));//比如 出现response错误码,则跳转到错误页面,该key对应的value就是错误类型原因导致的跳转----org.apache.catalina.core.DISPATCHER_TYPE
 
 
-            Wrapper wrapper = request.getWrapper();
+            Wrapper wrapper = request.getWrapper();//找到对应的servlet
             if (wrapper != null)
                 request.setAttribute(Globals.SERVLET_NAME_ATTR,
-                                  wrapper.getName());
+                                  wrapper.getName());//说明在请求哪个servlet的时候出现的错误---javax.servlet.error.servlet_name
             request.setAttribute(Globals.EXCEPTION_PAGE_ATTR,
-                                 request.getRequestURI());
+                                 request.getRequestURI());//请求什么url的时候出现的错误----javax.servlet.error.request_uri
             if (custom(request, response, errorPage)) {
                 try {
                     response.flushBuffer();
@@ -394,6 +450,7 @@ final class StandardHostValve
      * @param request The request being processed
      * @param response The response being generated
      * @param errorPage The errorPage directive we are obeying
+     * 内部跳转到错误页面
      */
     protected boolean custom(Request request, Response response,
                              ErrorPage errorPage) {
@@ -401,7 +458,7 @@ final class StandardHostValve
         if (container.getLogger().isDebugEnabled())
             container.getLogger().debug("Processing " + errorPage);
 
-        request.setPathInfo(errorPage.getLocation());
+        request.setPathInfo(errorPage.getLocation());//设置重定向的url
 
         try {
             // Forward control to the specified location

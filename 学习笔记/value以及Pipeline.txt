@@ -1,0 +1,212 @@
+一、Pipeline----将value传接起来
+1.最后执行的是baseValue
+2.以此从firstValue开始调用invoke方法
+因为invoke方法是没有返回值的,因此假设
+第一个value 执行xxxx nextValue.invoke yyyy,其实相当于把所有的nextValue都执行完后,才执行的yyy方法,因为nextValue的invoke是递归过程。
+3.四个容器都有Pipeline,每一个容器都有一个具体的实现类,主要是目的不同.比如有的容器就是filter的目的,有的容器是路由器的目的。
+4.大家继续脑补一下，现在已经进入到StanadrdWrapperValue了。那根据我们对tomcat的了解下面应该做什么了呢？
+对了，接下来我们就要穿越过层层filter，进入servlet了。 
+
+
+
+二、为什么定义了四个容器
+connect一个连接过来后,是在本地web网络监听一个端口,本身与tomcat已经没关系了，因此当该connection得到一个请求后,转换成一个Request和Response对象。
+那么怎么找到tomcat中的配置呢?
+答案是:connector.getService().getContainer().getPipeline().getFirst().invoke(request, response)
+1.connection在一个service中,因此connection.getService就可以获取所在的service。
+2.而所在的service是知道一个容器的,该容器是一个,因此是引擎容器
+3.通过引擎容器的getPipeline就可以做处理了,baseValue的时候,会路由到该connection所请求的host上
+4.然后host进入管道模式处理,找到url对应的应用Context
+5.然后应用Context进行管道模式处理,找到本次请求的servlet,即Wrapper
+---------------
+三、具体实现类的关系
+1.标准管道接口以及实现类
+Pipeline接口 以及 org.apache.catalina.core.StandardPipeline实现类
+2.应用在Pipeline中的Value接口,以及四个容器分别对Value接口的实现
+Valve接口 以及 org.apache.catalina.core.StandardEngineValve/StandardHostValve/StandardContextValve/StandardWrapperValve
+以及基础接口ValveBase
+
+四、Pipeline具体讲解
+1.Pipeline接口
+表示一个管道,操作各种value插件,每一个容器都可以插入若干个value插件
+先执行插入的value插件,最后执行basicValue
+基本功能:
+a.获取基本value :Valve getBasic()
+b.对value的管理----会设置value的链表,让value之间是有关系的,知道下一个value是谁
+addValve(Valve valve) 新增、删除、list
+c.获取第一个value : Valve getFirst();
+2.Value接口
+a.String getInfo()  返回描述该value作用的一些信息
+b.Valve getNext()/setValue 返回管道里面下一个value对象
+c.void backgroundProcess() 周期性调用后台方法
+d.void invoke(Request request, Response response) 真正如何执行该value的接口实现
+e.void event(Request request, Response response, CometEvent event)
+
+五、Pipeline的实现类 --- StandardPipeline
+1.protected Container container = null;因为一个管道肯定属于一个容器的,即一个容器拥有一个管道,因此管道对象需要持有容器对象
+2.监听器相关的增删改差
+3.getBasic/setBasic 设置和获取基础value
+a.设置属性this.basic = valve;,即设置基础value是谁
+b.如果该管道不仅仅有基础value,还已经添加了其他value,则递归所有的value的nextValue方法,找到最后一个value,将基础value赋值给最后一个value的nextValue上
+4.void addValve(Valve valve) 添加一个value
+比如连续调用addValue3次,分别添加value1,value2,value3,则最终结果是
+first就是value1,然后value1的nextValue是value2,value2的nextValue是value3,value3的nextValue是basicValue
+5.Valve[] getValves() 按照value的添加顺序,返回所有的value集合,最后一个是basicValue
+6.可以允许删除一个Value
+7.Valve getFirst() 获取第一个value
+
+六、Value的基础实现类 ValveBase
+1.protected Container container = null; 知道该value是哪个容器的value,属于四种容器的哪一种,并且哪一个实例对象的value
+2.Valve next = null 获取下一个value是谁,这个在StandardPipeline实现类的addValve中创建新的value的时候维护的
+3.invoke(Request request, Response response)子类具体实现
+4.event(Request request, Response response, CometEvent event)子类具体实现
+
+七、StandardEngineValve----Engine级别的基础value做了什么工作
+1.invoke(Request request, Response response)
+a.通过请求找到该请求的是哪个host
+Host host = request.getHost();
+b.执行host的管道
+host.getPipeline().getFirst().invoke(request, response);
+2.event(Request request, Response response, CometEvent event)
+找到请求的host,直接发送给host的管道流处理
+request.getHost().getPipeline().getFirst().event(request, response, event);
+
+总结:
+基本上没做什么工作,就是找到对应的host,走host的流程而已。
+该类存在的意义就是可以自定义一些value切入进来,此时的request和response可以监控所有流过tomcat的所有信息,所有host、所有项目，所有servlet的都可以被监控到
+
+八、StandardHostValve----Host级别的基础value做了什么工作
+1.void invoke(Request request, Response response) 和 event(Request request, Response response, CometEvent event)方法逻辑一样
+a.找到请求对应的Context项目对象
+Context context = request.getContext();
+b.调用context的管道处理请求
+context.getPipeline().getFirst().invoke(request, response);
+c.当管道处理请求后,继续做一些事儿,注意测试servlet都已经全部请求回来了,因此主要的还是对response做很多处理,以及记录请求时间等操作
+d.request.getSession(false); 为请求创建session,目的是符合servlet规范
+e.response.setSuspended(false);
+f.Throwable t = (Throwable) request.getAttribute(Globals.EXCEPTION_ATTR);获取请求处理中是否有异常,返回异常对象
+g.是处理异常,还是处理状态
+        if (t != null) {
+            throwable(request, response, t);
+        } else {
+            status(request, response);
+        }
+h.继续给其他Host的value处理
+
+3.status(Request request, Response response) 说明程序正常请求结束.没有出现异常
+a.获取返回码int statusCode = response.getStatus();
+b.Context context = request.getContext(); 获取conext项目对象
+c.if (!response.isError()) return 如果response返回的没有异常,则不再处理该任务了,说明完全正确
+d.以下内容说明response返回的是一个异常状态码
+e.通过状态号码找到对应的错误页面
+ErrorPage errorPage = context.findErrorPage(statusCode);
+f.设置属性信息
+request.setAttribute(Globals.STATUS_CODE_ATTR,new Integer(statusCode));//存储response返回的状态码----javax.servlet.error.status_code
+request.setAttribute(Globals.ERROR_MESSAGE_ATTR, message);//如果response返回的错误码,此时存储对应的错误信息文字---javax.servlet.error.message
+request.setAttribute(ApplicationFilterFactory.DISPATCHER_REQUEST_PATH_ATTR,errorPage.getLocation());//比如 出现response错误码,则跳转到错误页面,该key对应的value就是错误地址url----org.apache.catalina.core.DISPATCHER_REQUEST_PATH
+request.setAttribute(ApplicationFilterFactory.DISPATCHER_TYPE_ATTR,new Integer(ApplicationFilterFactory.ERROR));//比如 出现response错误码,则跳转到错误页面,该key对应的value就是错误类型原因导致的跳转----org.apache.catalina.core.DISPATCHER_TYPE
+因为上面是可能要重定向到其他页面的,所以都要设置在request属性里面
+
+Wrapper wrapper = request.getWrapper();找到对应的servlet
+request.setAttribute(Globals.SERVLET_NAME_ATTR,wrapper.getName());//说明在请求哪个servlet的时候出现的错误---javax.servlet.error.servlet_name
+request.setAttribute(Globals.EXCEPTION_PAGE_ATTR,request.getRequestURI());//请求什么url的时候出现的错误----javax.servlet.error.request_uri
+custom(request, response, errorPage) 内部跳转到错误页面,使用include或者forward 内部跳转到错误页面
+
+4.throwable(Request request, Response response,Throwable throwable)  处理请求过程中出现异常的情况
+a.Context context = request.getContext();获取项目对象
+b.找到异常对应的错误页面,内部跳转到错误页面即可,该操作与status中f步骤差不多
+
+总结:
+1.基本上没做什么工作,就是找到对应的conext,走conext的流程而已。
+2.出现异常的时候,或者定义好的错误页面的时候,跳转到错误页面
+3.该类存在的意义就是可以自定义一些value切入进来,此时的request和response可以监控该host下所有的项目，所有servlet的都可以被监控到
+
+九、StandardContextValve----Context容器级别的基础value做了什么工作
+1.StandardContext context = null; 该value属于哪个容器.并且一定该容器是StandardContext类型的容器
+2.void invoke(Request request, Response response)
+a.不允许访问/META-INF/和/WEB-INF下面的资源文件，如果访问,则直接返回找不到该文件即可
+MessageBytes requestPathMB = request.getRequestPathMB().startsWithIgnoreCase("/META-INF/", 0)
+b.获取对应的servlet  Wrapper wrapper = request.getWrapper();
+c.获取该项目监控的所有的事件
+Object instances[] = context.getApplicationEventListeners();
+从事件中查找到ServletRequestListener监听器集合,调用requestInitialized方法,将该请求发送给监听器
+表示该web应用的一个请求来了
+d.对servlet进行管道处理
+wrapper.getPipeline().getFirst().invoke(request, response);
+e.servlet管道处理后,对ServletRequestListener事件的requestDestroyed方法进行调用.表示该web应用的一个请求走了
+
+3.event(Request request, Response response, CometEvent event) 
+方法与invoke逻辑相同,省略
+
+
+注意:
+ServletRequestListener接口
+    public void requestDestroyed ( ServletRequestEvent sre ); 表示该web应用的一个请求走了
+    public void requestInitialized ( ServletRequestEvent sre ); 表示该web应用的一个请求来了
+
+总结:
+1.基本上没做什么工作,就是找到对应的servlet(wrapper),走servlet(wrapper)的流程而已。
+2.限制了资源的请求访问内容,不允许访问/META-INF/和/WEB-INF下面的资源文件
+3.在servlet管道处理前后,对该应用项目级别的请求监控进行处理
+即进入到该项目的每一个请求的进/出都可以做跟踪
+3.该类存在的意义就是可以自定义一些value切入进来,此时的request和response可以监控一个项目下所有的servlet
+
+十、StandardWrapperValve----Wrapper容器级别的基础value做了什么工作---因为Wrapper控制的是servlet,因此该容器是最核心的,但是他只是影响了一个servlet而已,不会影响很大范围的其他servlet
+1.统计信息:以下在多线程环境下统计,因此是volatile
+    private volatile long processingTime;//处理所有的servlet的总时间
+    private volatile long maxTime;//处理servlet的最长的时间是多少
+    private volatile long minTime = Long.MAX_VALUE;//处理servlet的最短的时间是多少
+    private volatile int requestCount;//一共多少次servlet被请求了
+    private volatile int errorCount;//失败的servlet请求次数
+2.exception(Request request, Response response,Throwable exception) 在处理servlet的过程中出现异常,如何处理
+    	request.setAttribute(Globals.EXCEPTION_ATTR, exception);//设置异常对象到javax.servlet.error.exception的key中
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);//设置状态码
+3.invoke(Request request, Response response)
+a.requestCount++;//记录一共多少次servlet被请求了
+b.获取servlet容器的父容器,即项目对象所在容器Context,判断该容器是否可用,如果不可用,说项目都不可用,肯定有问题
+response.sendError 设置500状态码
+c.如果项目本身是可用的,则判断该servlet是否可用,wrapper.isUnavailable()
+如果servlet不可用.则看long available = wrapper.getAvailable();servlet的生命期,如果是一个long值,则告诉客户端你过一会再来请求我,可能就好了。
+response.setDateHeader("Retry-After", available);
+response.sendError(503)
+如果available是long的max,说明该页面一直都会不存在,所以直接就返回404,告诉客户端以后你就别访问我了
+response.sendError(504)
+d.servlet = wrapper.allocate();//分配一个servlet实例,该过程可能是分配的servlet要确保线程安全
+如果创建过程中失败,则调用第2步骤
+e.对CometProcessor这种servlet单独实现的逻辑,暂时不懂什么意思,后续再研究
+f.设置分发信息
+request.setAttribute(ApplicationFilterFactory.DISPATCHER_REQUEST_PATH_ATTR,request.getRequestPathMB());//设置要发送给哪个servlet的url----org.apache.catalina.core.DISPATCHER_REQUEST_PATH
+request.setAttribute(ApplicationFilterFactory.DISPATCHER_TYPE_ATTR,REQUEST);//说明分发类型是正常的request请求分发----org.apache.catalina.core.DISPATCHER_TYPE
+g.创建filter过滤器链条对象
+ApplicationFilterFactory factory = ApplicationFilterFactory.getInstance();
+ApplicationFilterChain filterChain = factory.createFilterChain(request, wrapper, servlet);
+h.request.setComet(false); 意义不明
+i.String jspFile = wrapper.getJspFile();获取该servlet是否是jsp文件
+            if (jspFile != null)
+            	request.setAttribute(Globals.JSP_FILE_ATTR, jspFile);
+            else
+            	request.removeAttribute(Globals.JSP_FILE_ATTR);
+j.filterChain.doFilter(request.getRequest(), response.getResponse());
+ 该方法执行filter以及servlet的service方法
+k.filterChain.release(); 释放该filter内容
+l.wrapper.deallocate(servlet);销毁该servlet
+m.如果servlet不可用,则将其从加载器中卸载掉
+      if ((servlet != null) &&
+                (wrapper.getAvailable() == Long.MAX_VALUE)) {
+                wrapper.unload();
+            }
+n.统计执行所有servlet的总时间、最大事件和最小时间
+        long time=t2-t1;//处理的总事件
+        processingTime += time;
+        if( time > maxTime) maxTime=time;
+        if( time < minTime) minTime=time;
+
+4.event(Request request, Response response, CometEvent event) 同invoke逻辑一样
+
+总结:
+1.统计servlet的执行总次数以及总时间等信息
+2.创建servlet实例,执行servlet中init方法,过滤器方法 以及service方法,以及销毁方法
+可见每一个servlet生命周期
+3.出现异常的时候,将异常信息设置到request中,由上一次Context或者Host处理异常信息
+4.该类存在的意义就是可以自定义一些value切入进来,此时的request和response可以监控该servlet的请求
+

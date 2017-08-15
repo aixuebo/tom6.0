@@ -79,6 +79,34 @@ import org.apache.juli.logging.Log;
  * @author Craig R. McClanahan
  * @author Remy Maucherat
  * @version $Id: Container.java 1030188 2010-11-02 19:26:07Z markt $
+1.一个service只有一个Container,而不是多个,因为Container是Engine,所以一个容器对应一个service
+2.但是service对应的Engine这个Container本身是有继承关系的,他里面可以有子子孙孙容器,虽然root就是一个Container,但是里面会详细展开成多个容器。
+
+本类提供的功能:
+1.容器的定义info信息 ---String getInfo();
+2.加载容器的loader---Loader getLoader();
+3.String getName() 获取容器的name
+4.Container getParent()获取容器的父容器
+5.对子容器的管理
+void addChild(Container child)、get、list、delete
+6.对监听者的管理
+addContainerListener(ContainerListener listener)、list、detele
+7.暂时不知道意义
+Manager getManager() 
+Object getMappingObject()
+Pipeline getPipeline()
+Cluster getCluster();
+int getBackgroundProcessorDelay()
+Realm getRealm();
+DirContext getResources();
+void backgroundProcess()
+void invoke(Request request, Response response)
+logAccess(Request request, Response response, long time,boolean useDefault);
+AccessLog getAccessLog();
+8.全局属性
+a.addChild、removeChild
+b.addValve、removeValve
+c.addMapper、removeMapper
  */
 
 public interface Container {
@@ -90,6 +118,7 @@ public interface Container {
     /**
      * The ContainerEvent event type sent when a child container is added
      * by <code>addChild()</code>.
+     * 产生一个事件,说添加了一个子容器
      */
     public static final String ADD_CHILD_EVENT = "addChild";
 
@@ -130,7 +159,6 @@ public interface Container {
 
 
     // ------------------------------------------------------------- Properties
-
 
     /**
      * Return descriptive information about this Container implementation and

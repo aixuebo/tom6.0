@@ -41,6 +41,21 @@ import org.apache.catalina.valves.ValveBase;
  *
  * @author Craig R. McClanahan
  * @version $Id: StandardEngineValve.java 939336 2010-04-29 15:00:41Z kkolinko $
+ * 
+ * Engine级别的基础value做了什么工作
+ * 
+1.invoke(Request request, Response response)
+a.通过请求找到该请求的是哪个host
+Host host = request.getHost();
+b.执行host的管道
+host.getPipeline().getFirst().invoke(request, response);
+2.event(Request request, Response response, CometEvent event)
+找到请求的host,直接发送给host的管道流处理
+request.getHost().getPipeline().getFirst().event(request, response, event);
+
+总结:
+基本上没做什么工作,就是找到对应的host,走host的流程而已。
+该类存在的意义就是可以自定义一些value切入进来,此时的request和response可以监控所有流过tomcat的所有信息,所有host、所有项目，所有servlet的都可以被监控到
  */
 
 final class StandardEngineValve

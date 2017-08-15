@@ -393,6 +393,7 @@ public final class MessageBytes implements Cloneable, Serializable {
      * Returns true if the message bytes starts with the specified string.
      * @param s the string
      * @param pos The start position
+     * 忽略大小写,是否以s开头
      */
     public boolean startsWithIgnoreCase(String s, int pos) {
 	switch (type) {
