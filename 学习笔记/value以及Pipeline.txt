@@ -210,3 +210,130 @@ n.统计执行所有servlet的总时间、最大事件和最小时间
 3.出现异常的时候,将异常信息设置到request中,由上一次Context或者Host处理异常信息
 4.该类存在的意义就是可以自定义一些value切入进来,此时的request和response可以监控该servlet的请求
 
+
+十一、AccessLogValve-----Value的demo
+配置 <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs" prefix="localhost_access_log." suffix=".txt" pattern="%h %l %u %t &quot;%r&quot; %s %b"/>
+1.通过配置可以设置value对象的属性值
+private String directory = "logs";//日志文件存储路径
+protected String prefix = "access_log.";//日志文件前缀
+protected String suffix = "";//日志文件后缀,默认是空
+protected String pattern = null;//日志的输出格式
+protected boolean enabled = true;//是否该value可用,默认是可用的,如果是false,则说明该value插入进去不起作用
+protected String fileDateFormat = null;//默认是yyyy-MM-dd
+protected boolean rotatable = true;//是否日志文件不断滚动,默认是true,如果是false,则日志文件就一个
+protected String encoding = null;//默认是系统编码,日志文件的编码方式,即GBK还是UTF-8等编码
+protected String condition = null;,默认是null,即所有日志都记录,如果非null,则说明null == request.getRequest().getAttribute(condition)的记录才会被记录
+private boolean buffered = true;//默认true,是否缓存,即是否每一次都flush到磁盘上,true表示缓存一下,因为每一次flush是很耗费性能的
+private boolean checkExists = false;//默认是false,true表示每次写入文件的时候要判断文件是否存在,其实有时候这个是没意义的,所以是false
+
+2.如何设置模式---setPattern(String pattern)
+common和combined是公共定义的两套,如果不满足,则可以自己定义
+common:"%h %l %u %t \"%r\" %s %b";
+combined:"%h %l %u %t \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\"";
+对模式进行解析 logElements = createLogElements();
+
+createLogElements如何解析匹配模式---每一种模式都是AccessLogElement对象
+比如解析:%h %l %u %t \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\"
+a.遇见%p开头的,则创建对应的匹配对象AccessLogElement,即%x 模式,一个%跟着一个字符,因为每一个字符有一个AccessLogElement对应
+b.遇见%{}p的,获取{}里面的字符串,该字符串作为p对应的模式匹配的参数,比如用于从session中获取key对应的值,因此{key}s
+c.正常非%开头的正常输出,比如空格,或者任意字符串
+比如demo中从i中获取Referer和User-Agent对应的值,因为一定要确保有值,因此加入了""
+
+3.void start()
+a.设置各种时间分区、当前时间、当前文件的时间格式、当前文件的具体时间名字
+b.在日志目录下创建一个新的日志文件,并且设置好该文件的输出流
+
+4.invoke(Request request, Response response)
+a.判断getEnabled()是否是true,可用才进行正常逻辑处理
+b.执行接下来的value处理--getNext().invoke(request, response);
+c.记录日志,顺带着处理value所需要的所有时间
+log(request, response, time);
+
+4.log(request, response, time);如何记录日志
+a.校验是否需要记录日志
+没有设置parttern则不能记录日志
+设置了condition,但是request.getRequest().getAttribute(condition)!=null,即request中存在该条件的key的值的时候不记录日志
+b.让每一个模式打印自己的日志,然后拼接到StringBuffer中
+c.真实记录到日志系统中
+d.首先判断当前时间是否要切换日志文件,如果与日志文件的时间不一致,则关闭老的日志流,创建新的日志文件流
+e.writer.println(message);向输出流中写入数据
+f.是否每一次都flush到磁盘  if (!buffered) {writer.flush();}
+
+5.匹配规则
+a.单独匹配规则:比如%A
+* <ul>
+* <li><b>%a</b> - Remote IP address 获取远程请求人的IP,此时可能是代理服务器或者nginx的ip,因为实现是request.getRemoteAddr()
+* <li><b>%A</b> - Local IP address 获取tomcat所在服务器节点,用于多台tomcat服务器的时候,知道日志是从哪台机器上打印出来的---InetAddress.getLocalHost().getHostAddress();
+* <li><b>%b</b> - Bytes sent, excluding HTTP headers, or '-' if no bytes were sent  打印发送的字节长度 ,代码 response.getContentCountLong(),如果没有该字段,则返回"-"
+* <li><b>%B</b> - Bytes sent, excluding HTTP headers  打印发送的字节长度 ,代码 response.getContentCountLong()
+* <li><b>%h</b> - Remote host name 获取远程请求人的host,此时可能是代理服务器或者nginx的host,因为实现是request.getRemoteHost()
+* <li><b>%H</b> - Request protocol 获取远程请求的协议,比如http,因为实现是request.getProtocol()
+* <li><b>%l</b> - Remote logical username from identd (always returns '-')  暂时未实现,总是返回-
+* <li><b>%m</b> - Request method  输出http的请求头 request.getMethod()
+* <li><b>%p</b> - Local port  打印本地tomcat服务接收的端口,实现是request.getServerPort()
+* <li><b>%q</b> - Query string (prepended with a '?' if it exists, otherwise an empty string 返回请求的参数部分信息,输出 ?request.getQueryString()
+* <li><b>%r</b> - First line of the request 打印请求头第一行信息,默认输出- - ,真实输出是request.getMethod()+" "+request.getRequestURI()+"?"+request.getQueryString()+" "+request.getProtocol()
+* <li><b>%s</b> - HTTP status code of the response 打印http的状态码 response.getStatus(),默认是-
+* <li><b>%S</b> - User session ID  获取user对应的sessionId,默认输出"-",代码实现request.getSessionInternal(false).getIdInternal()
+* <li><b>%t</b> - Date and time, in Common Log Format format 打印日志输出时候此时的系统时间,格式[dd/MM/YYYY:HH:mm:ss 时区]
+* <li><b>%u</b> - Remote user that was authenticated  获取远程请求user,获取不到,则显示"-",因为实现是request.getRemoteUser()
+* <li><b>%U</b> - Requested URL path  输出 request.getRequestURI(),默认是"-"
+* <li><b>%v</b> - Local server name  打印本地的服务name,代码request.getServerName()
+* <li><b>%D</b> - Time taken to process the request, in millis 打印请求到response的处理时间,单位就是millis
+* <li><b>%T</b> - Time taken to process the request, in seconds 打印请求到response的处理时间,单位就是s
+* <li><b>%I</b> - current Request thread name (can compare later with stacktraces)  获取写入日志的线程name,默认是"_",代码实现:request.getCoyoteRequest().getRequestProcessor().getWorkerThreadName()
+* </ul>
+b.从session等集合中获取key的规则,比如%{Referer}i 或者一定要确保有输出,则加入双引号,并且转义的形式\"%{Referer}i\"
+* <ul>
+* <li><code>%{xxx}i</code> for incoming headers %{xxx}i 从Headers中获取key对应的值,默认"-",代码是request.getHeaders(header),将得到的数组用逗号连接成字符串
+* <li><code>%{xxx}o</code> for outgoing response headers %{xxx}o 从response中获取key对应的值,默认"-",代码是response.getHeaderValues(header),将得到的数组用逗号连接成字符串
+* <li><code>%{xxx}c</code> for a specific cookie %{xxx}c 从cookie中获取key对应的值,默认"-",代码是request.getCookies(),将得到的数组查找符合参数key对应的value
+* <li><code>%{xxx}r</code> xxx is an attribute in the ServletRequest  %{xxx}r 从request中获取key对应的值,默认"-",如果没有request,则输出??,代码是request.getAttribute(header)
+* <li><code>%{xxx}s</code> xxx is an attribute in the HttpSession  %{xxx}s 从session中获取key对应的值,默认"-",如果没有request,则输出??,代码是request.getSession(false).getAttribute(key)
+* </ul>
+
+注意:
+匹配模式双引号可以使用这种方式:&quot;%r&quot;----输出"PUT /kylin/api/cache/cube/olap_basic_cube_v3/update HTTP/1.1"
+
+十二、ExtendedAccessLogValve 也是日志的升级版本,使用详细的名字获取数据,而不是使用缩写
+ * <ul>
+ * <li><code>c-dns</code>:  Client hostname</li> 获取远程请求人的host,此时可能是代理服务器或者nginx的host,因为实现是request.getRemoteHost()
+ * <li><code>c-ip</code>:  Client ip address</li> 获取远程请求人的IP,此时可能是代理服务器或者nginx的ip,因为实现是request.getRemoteAddr()
+ * <li><code>bytes</code>:  bytes served</li>  打印发送的字节长度 ,代码 response.getContentCountLong(),如果没有该字段,则返回"-"
+   cs表示从客户端到服务端的过程中获取信息
+ * <li><code>cs-method</code>:  request method</li>  输出http的请求头 request.getMethod()
+ * <li><code>cs-uri</code>:  The full uri requested</li> 输出 request.getRequestURI()?request.getQueryString()
+ * <li><code>cs-uri-query</code>:  The query string</li>  输出request.getQueryString()
+ * <li><code>cs-uri-stem</code>:  The uri without query string</li> 输出 request.getRequestURI(),默认是"-"
+ * <li><code>date</code>:  The date in yyyy-mm-dd  format for GMT</li> 获取yyyy-mm-dd格式的日期
+ * <li><code>s-dns</code>: The server dns entry </li> 获取tomcat所在服务器节点,用于多台tomcat服务器的时候,知道日志是从哪台机器上打印出来的---InetAddress.getLocalHost().getHostName();
+ * <li><code>s-ip</code>:  The server ip address</li> 获取tomcat所在服务器节点,用于多台tomcat服务器的时候,知道日志是从哪台机器上打印出来的---InetAddress.getLocalHost().getHostAddress();
+ * <li><code>cs(XXX)</code>:  The value of header XXX from client to server</li> 从request.getHeader中获取key对应的值
+ sc 表示从服务端向客户端过程中获取信息
+ * <li><code>sc(XXX)</code>: The value of header XXX from server to client </li> 从response.getHeader中获取key对应的值
+ * <li><code>sc-status</code>:  The status code</li>  打印http的状态码 response.getStatus(),默认是-
+ * <li><code>time</code>:  Time the request was served</li>  获取HH:mm:ss格式的日期
+ * <li><code>time-taken</code>:  Time (in seconds) taken to serve the request</li> 获取HH:mm:ss格式的日期 + long类型的请求操作耗时时间
+ * <li><code>x-A(XXX)</code>: Pull XXX attribute from the servlet context </li>  从request.getContext().getServletContext().getAttribute()中获取key对应的值
+ * <li><code>x-C(XXX)</code>: Pull the first cookie of the name XXX </li>  从request.getCookies()中获取key对应的值
+ * <li><code>x-O(XXX)</code>: Pull the all response header values XXX </li>  获取response.getHeaderValues(header)中list,转换成逗号分割的字符串
+ * <li><code>x-R(XXX)</code>: Pull XXX attribute from the servlet request </li>  从request.getAttribute(attribute)中获取key对应的值
+ * <li><code>x-S(XXX)</code>: Pull XXX attribute from the session </li>  从session.getAttribute(attribute)中获取key对应的值
+ * <li><code>x-P(...)</code>:  Call request.getParameter(...) and URLencode it. Helpful to capture certain POST parameters.  获取URLEncoder.encode(request.getParameter(parameter))
+ * </li>
+ * 
+ * </li>
+ * <li>For any of the x-H(...) the following method will be called from the
+ *                HttpServletRequest object </li>
+ * <li><code>x-H(authType)</code>: getAuthType </li>  从request.getAuthType()获取值
+ * <li><code>x-H(characterEncoding)</code>: getCharacterEncoding </li>  从request.getCharacterEncoding()获取值
+ * <li><code>x-H(contentLength)</code>: getContentLength </li> 从request.getContentLength()获取值
+ * <li><code>x-H(locale)</code>:  getLocale</li> 从request.getLocale()获取值
+ * <li><code>x-H(protocol)</code>: getProtocol </li> 从request.getProtocol()获取值
+ * <li><code>x-H(remoteUser)</code>:  getRemoteUser</li> 从request.getRemoteUser()获取值
+
+ * <li><code>x-H(requestedSessionId)</code>: getRequestedSessionId</li> 从request.getRequestedSessionId()获取值
+ * <li><code>x-H(requestedSessionIdFromCookie)</code>:isRequestedSessionIdFromCookie </li> 从request.isRequestedSessionIdFromCookie()获取值
+ * <li><code>x-H(requestedSessionIdValid)</code>: isRequestedSessionIdValid</li> 从request.isRequestedSessionIdValid()获取值
+ * <li><code>x-H(scheme)</code>:  getScheme</li> 从request.getScheme()获取值
+ * <li><code>x-H(secure)</code>:  isSecure</li> 从request.isSecure()获取值

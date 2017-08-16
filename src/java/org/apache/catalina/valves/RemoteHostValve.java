@@ -31,6 +31,8 @@ import org.apache.catalina.connector.Response;
  *
  * @author Craig R. McClanahan
  * @version $Id: RemoteHostValve.java 939353 2010-04-29 15:50:43Z kkolinko $
+ * 
+ * 校验远程host是否允许通过请求
  */
 
 public final class RemoteHostValve
@@ -77,9 +79,8 @@ public final class RemoteHostValve
      */
     public void invoke(Request request, Response response)
         throws IOException, ServletException {
-
+    	//校验远程host是否允许通过请求
         process(request.getRequest().getRemoteHost(), request, response);
-
     }
 
 

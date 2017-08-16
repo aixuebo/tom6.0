@@ -35,9 +35,10 @@ import org.apache.catalina.util.StringManager;
 
 /**
  * <p>Implementation of a Valve that limits concurrency.</p>
- *
+ *  该value限制并发数量--即控制进入一个容器的线程数量,一次只能有若干个线程进入该容器
  * <p>This Valve may be attached to any Container, depending on the granularity
  * of the concurrency control you wish to perform.</p>
+ * 该value可以附加在任意容器下,依赖更细粒度的并发控制
  *
  * @author Remy Maucherat
  * @version $Id: SemaphoreValve.java 939353 2010-04-29 15:50:43Z kkolinko $
@@ -88,6 +89,7 @@ public class SemaphoreValve
     
     /**
      * Concurrency level of the semaphore.
+     * 设置并发数量
      */
     protected int concurrency = 10;
     public int getConcurrency() { return concurrency; }
@@ -96,6 +98,7 @@ public class SemaphoreValve
 
     /**
      * Fairness of the semaphore.
+     * 是否是公平锁
      */
     protected boolean fairness = false;
     public boolean getFairness() { return fairness; }
@@ -104,6 +107,7 @@ public class SemaphoreValve
 
     /**
      * Block until a permit is available.
+     * 是否获取锁的时候阻塞
      */
     protected boolean block = true;
     public boolean getBlock() { return block; }
@@ -173,6 +177,7 @@ public class SemaphoreValve
         lifecycle.fireLifecycleEvent(START_EVENT, null);
         started = true;
 
+        //开启一个并发量的线程池,采用是否公平锁
         semaphore = new Semaphore(concurrency, fairness);
 
     }
@@ -223,35 +228,35 @@ public class SemaphoreValve
     public void invoke(Request request, Response response)
         throws IOException, ServletException {
 
-        if (controlConcurrency(request, response)) {
+        if (controlConcurrency(request, response)) {//说明需要进行线程控制
             boolean shouldRelease = true;
             try {
-                if (block) {
+                if (block) {//说明获取锁的时候使用阻塞方式
                     if (interruptible) {
                         try {
-                            semaphore.acquire();
+                            semaphore.acquire();//阻塞获取
                         } catch (InterruptedException e) {
                             shouldRelease = false;
-                            permitDenied(request, response);
+                            permitDenied(request, response);//说明获取失败了
                             return;
                         }  
                     } else {
                         semaphore.acquireUninterruptibly();
                     }
-                } else {
-                    if (!semaphore.tryAcquire()) {
+                } else {//说明使用非阻塞的方式获取锁
+                    if (!semaphore.tryAcquire()) {//尝试获取失败
                         shouldRelease = false;
-                        permitDenied(request, response);
+                        permitDenied(request, response);//说明获取失败了
                         return;
                     }
                 }
-                getNext().invoke(request, response);
+                getNext().invoke(request, response);//获取到锁了,继续执行
             } finally {
                 if (shouldRelease) {
                     semaphore.release();
                 }
             }
-        } else {
+        } else {//说明不需要进行线程控制
             getNext().invoke(request, response);
         }
 
@@ -260,6 +265,7 @@ public class SemaphoreValve
     
     /**
      * Subclass friendly method to add conditions.
+     * 子类去实现,true表示要进行线程控制,fasle表示该请求不需要进行线程控制,即可以对某些关键请求做线程控制,那么子类就通过request的uri进行判断即可
      */
     public boolean controlConcurrency(Request request, Response response) {
         return true;
@@ -268,6 +274,7 @@ public class SemaphoreValve
 
     /**
      * Subclass friendly method to add error handling when a permit isn't granted.
+     * 如何拒绝的话,子类如何做
      */
     public void permitDenied(Request request, Response response)
         throws IOException, ServletException {

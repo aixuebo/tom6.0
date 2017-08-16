@@ -45,6 +45,7 @@ import org.apache.catalina.util.StringManager;
  *
  * @author Jean-Frederic Clere
  * @version $Id: PersistentValve.java 1028554 2010-10-28 23:58:00Z kkolinko $
+ * 该value用于管理session
  */
 
 public class PersistentValve
@@ -97,7 +98,6 @@ public class PersistentValve
      */
     public void invoke(Request request, Response response)
         throws IOException, ServletException {
-
         // Select the Context to be used for this Request
         Context context = request.getContext();
         if (context == null) {
@@ -109,18 +109,18 @@ public class PersistentValve
 
         // Bind the context CL to the current thread
         Thread.currentThread().setContextClassLoader
-            (context.getLoader().getClassLoader());
+            (context.getLoader().getClassLoader());//切换成context级别的loader
 
         // Update the session last access time for our session (if any)
-        String sessionId = request.getRequestedSessionId();
-        Manager manager = context.getManager();
+        String sessionId = request.getRequestedSessionId();//本次请求的sessionid
+        Manager manager = context.getManager();//项目级别的session管理器
         if (sessionId != null && manager != null) {
-            if (manager instanceof PersistentManager) {
+            if (manager instanceof PersistentManager) {//调用session的存储器
                 Store store = ((PersistentManager) manager).getStore();
                 if (store != null) {
                     Session session = null;
                     try {
-                        session = store.load(sessionId);
+                        session = store.load(sessionId);//获取该sessionid对应的session信息
                     } catch (Exception e) {
                         container.getLogger().error("deserializeError");
                     }
@@ -129,8 +129,8 @@ public class PersistentValve
                             isSessionStale(session, System.currentTimeMillis())) {
                             if (container.getLogger().isDebugEnabled())
                                 container.getLogger().debug("session swapped in is invalid or expired");
-                            session.expire();
-                            store.remove(sessionId);
+                            session.expire();//说明session过期.
+                            store.remove(sessionId);//移除存储该session
                         } else {
                             session.setManager(manager);
                             // session.setId(sessionId); Only if new ???
@@ -162,7 +162,7 @@ public class PersistentValve
             newsessionId = hsess.getIdInternal();
 
         if (container.getLogger().isDebugEnabled())
-            container.getLogger().debug("newsessionId: " + newsessionId);
+            container.getLogger().debug("newsessionId: " + newsessionId);//返回新的sessionid
         if (newsessionId!=null) {
             /* store the session in the store and remove it from the manager */
             if (manager instanceof PersistentManager) {
@@ -197,6 +197,7 @@ public class PersistentValve
      * than its expiration date as of the supplied time.
      *
      * FIXME: Probably belongs in the Session class.
+     * 判断该session是否还存活
      */
     protected boolean isSessionStale(Session session, long timeNow) {
  

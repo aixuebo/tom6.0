@@ -31,6 +31,7 @@ import org.apache.catalina.connector.Response;
  *
  * @author Craig R. McClanahan
  * @version $Id: RemoteAddrValve.java 939353 2010-04-29 15:50:43Z kkolinko $
+ * 校验远程ip是否允许通过请求
  */
 
 public final class RemoteAddrValve
@@ -78,6 +79,7 @@ public final class RemoteAddrValve
     public void invoke(Request request, Response response)
         throws IOException, ServletException {
 
+    	//校验远程ip是否允许通过请求
         process(request.getRequest().getRemoteAddr(), request, response);
 
     }

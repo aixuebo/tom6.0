@@ -32,6 +32,7 @@ public final class Constants {
 
     // Constants for the AccessLogValve class
     public static final class AccessLog {
+    	//定义了公共的两个日志匹配模式
         public static final String COMMON_ALIAS = "common";
         public static final String COMMON_PATTERN = "%h %l %u %t \"%r\" %s %b";
         public static final String COMBINED_ALIAS = "combined";

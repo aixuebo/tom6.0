@@ -59,6 +59,8 @@ import org.apache.tomcat.util.modeler.modules.MbeansSource;
  *
  * @author Craig R. McClanahan
  * @version $Id: StandardEngine.java 1056442 2011-01-07 18:26:09Z markt $
+ * 
+ * 表示Engine这个容器,是根容器
  */
 
 public class StandardEngine
@@ -75,10 +77,10 @@ public class StandardEngine
     public StandardEngine() {
 
         super();
-        pipeline.setBasic(new StandardEngineValve());
+        pipeline.setBasic(new StandardEngineValve());//设置基本的Value
         /* Set the jmvRoute using the system property jvmRoute */
         try {
-            setJvmRoute(System.getProperty("jvmRoute"));
+            setJvmRoute(System.getProperty("jvmRoute"));//设置唯一的编码
         } catch(Exception ex) {
         }
         // By default, the engine will hold the reloading thread
@@ -106,6 +108,7 @@ public class StandardEngine
 
     /**
      * The <code>Service</code> that owns this Engine, if any.
+     * 引擎关联的service
      */
     private Service service = null;
 
@@ -298,6 +301,7 @@ public class StandardEngine
      * Engine is supposed to be at the top of the Container hierarchy.
      *
      * @param container Proposed parent Container
+     * 该接口是根容器,不需要有父容器
      */
     public void setParent(Container container) {
 

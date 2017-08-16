@@ -67,6 +67,7 @@ import org.apache.catalina.util.StringManager;
  *
  * @author Craig R. McClanahan
  * @version $Id: RequestFilterValve.java 1303194 2012-03-20 23:02:55Z kkolinko $
+ * 传入一个正则表达式集合,对其进行过滤，正则表达式包含允许的和拒绝的表达式
  */
 
 public abstract class RequestFilterValve
@@ -95,6 +96,7 @@ public abstract class RequestFilterValve
 
     /**
      * The comma-delimited set of <code>allow</code> expressions.
+     * 设置正则表达式集合,用逗号拆分
      */
     protected volatile String allow = null;
 
@@ -103,24 +105,28 @@ public abstract class RequestFilterValve
      * It is <code>true</code> by default, but becomes <code>false</code>
      * if there was an attempt to assign an invalid value to the
      * <code>allow</code> pattern.
+     * true表示允许正则表达式是存在的
      */
     protected volatile boolean allowValid = true;
 
 
     /**
      * The set of <code>allow</code> regular expressions we will evaluate.
+     * 允许的正则表达式集合
      */
     protected volatile Pattern allows[] = new Pattern[0];
 
 
     /**
      * The set of <code>deny</code> regular expressions we will evaluate.
+     * 拒绝的正则表达式集合
      */
     protected volatile Pattern denies[] = new Pattern[0];
 
 
     /**
      * The comma-delimited set of <code>deny</code> expressions.
+     * 逗号拆分的拒绝的表达式集合
      */
     protected volatile String deny = null;
 
@@ -286,6 +292,7 @@ public abstract class RequestFilterValve
      *
      * @exception IllegalArgumentException if one of the patterns has
      *  invalid syntax
+     *  参数是用逗号拆分好的正则表达式集合
      */
     protected Pattern[] precalculate(String list) {
 
@@ -298,12 +305,12 @@ public abstract class RequestFilterValve
 
         ArrayList reList = new ArrayList();
         while (list.length() > 0) {
-            int comma = list.indexOf(',');
+            int comma = list.indexOf(',');//用逗号拆分
             if (comma < 0)
                 break;
             String pattern = list.substring(0, comma).trim();
             try {
-                reList.add(Pattern.compile(pattern));
+                reList.add(Pattern.compile(pattern));//每一个都是一个正则表达式
             } catch (PatternSyntaxException e) {
                 IllegalArgumentException iae = new IllegalArgumentException
                     (sm.getString("requestFilterValve.syntax", pattern));
@@ -334,11 +341,12 @@ public abstract class RequestFilterValve
                            Request request, Response response)
         throws IOException, ServletException {
 
-        if (isAllowed(property)) {
-            getNext().invoke(request, response);
+        if (isAllowed(property)) {//说明允许
+            getNext().invoke(request, response);//继续下一个value
             return;
         }
-
+        
+        //说明不允许,因此进行拒绝请求
         // Deny this request
         denyRequest(request, response);
 
@@ -352,6 +360,7 @@ public abstract class RequestFilterValve
      * @param response The servlet response to be processed
      * @exception IOException if an input/output error occurs
      * @exception ServletException if a servlet error occurs
+     * 拒绝请求,即请求失败
      */
     protected void denyRequest(Request request, Response response)
             throws IOException, ServletException {
@@ -367,6 +376,8 @@ public abstract class RequestFilterValve
      *
      * @param property
      *            The request property value on which to filter
+     * true表示参数是和允许的表达式之一匹配
+     * true表示允许成功
      */
     public boolean isAllowed(String property) {
         // Use local copies for thread safety
@@ -374,24 +385,25 @@ public abstract class RequestFilterValve
         Pattern[] allows = this.allows;
 
         // Check the deny patterns, if any
-        for (int i = 0; i < denies.length; i++) {
+        for (int i = 0; i < denies.length; i++) {//和任意一个拒绝的表达式匹配,则都是拒绝
             if (denies[i].matcher(property).matches()) {
                 return false;
             }
         }
 
         // Check the allow patterns, if any
-        for (int i = 0; i < allows.length; i++) {
+        for (int i = 0; i < allows.length; i++) {//和任意允许的表达式匹配,则都是成功
             if (allows[i].matcher(property).matches()) {
                 return true;
             }
         }
 
         // Allow if denies specified but not allows
-        if ((denies.length > 0) && (allows.length == 0)) {
+        if ((denies.length > 0) && (allows.length == 0)) {//说明有拒绝的,但是没有设置成功的表达式,因此说明只要不是拒绝的,都是成功的
             return true;
         }
 
+        //说明设置了成功的表达式,因此此时没匹配到成功的表达式,因此都是false失败拒绝
         // Deny this request
         return false;
     }

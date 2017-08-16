@@ -47,6 +47,8 @@ import org.apache.juli.logging.Log;
  *
  * @author Craig R. McClanahan
  * @version $Id: RequestDumperValve.java 1135572 2011-06-14 13:46:24Z markt $
+ * 
+ * 打印请求的所有过程信息
  */
 
 public class RequestDumperValve
@@ -101,7 +103,7 @@ public class RequestDumperValve
 
         Log log = container.getLogger();
         
-        // Log pre-service information
+        // Log pre-service information  打印请求前的数据
         log.info("REQUEST URI       =" + request.getRequestURI());
         log.info("          authType=" + request.getAuthType());
         log.info(" characterEncoding=" + request.getCharacterEncoding());
@@ -152,14 +154,14 @@ public class RequestDumperValve
         log.info("          isSecure=" + request.isSecure());
         log.info("---------------------------------------------------------------");
 
-        // Perform the request
+        // Perform the request  继续请求
         getNext().invoke(request, response);
 
-        // Log post-service information
+        // Log post-service information 打印请求后的数据
         log.info("---------------------------------------------------------------");
         log.info("          authType=" + request.getAuthType());
-        log.info("     contentLength=" + response.getContentLength());
-        log.info("       contentType=" + response.getContentType());
+        log.info("     contentLength=" + response.getContentLength());//但会回复的数据字节数
+        log.info("       contentType=" + response.getContentType());//打印回复的是什么类型的html信息
         Cookie rcookies[] = response.getCookies();
         for (int i = 0; i < rcookies.length; i++) {
             log.info("            cookie=" + rcookies[i].getName() + "=" +

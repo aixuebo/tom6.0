@@ -216,6 +216,7 @@ public class Response
     
     /**
      * The error flag.
+     * true说明请求过程中产生的异常
      */
     protected boolean error = false;
 

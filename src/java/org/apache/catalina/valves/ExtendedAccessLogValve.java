@@ -47,45 +47,46 @@ import org.apache.juli.logging.LogFactory;
  *
  * The following fields are supported:
  * <ul>
- * <li><code>c-dns</code>:  Client hostname</li>
- * <li><code>c-ip</code>:  Client ip address</li>
- * <li><code>bytes</code>:  bytes served</li>
- * <li><code>cs-method</code>:  request method</li>
- * <li><code>cs-uri</code>:  The full uri requested</li>
- * <li><code>cs-uri-query</code>:  The query string</li>
- * <li><code>cs-uri-stem</code>:  The uri without query string</li>
- * <li><code>date</code>:  The date in yyyy-mm-dd  format for GMT</li>
- * <li><code>s-dns</code>: The server dns entry </li>
- * <li><code>s-ip</code>:  The server ip address</li>
- * <li><code>cs(XXX)</code>:  The value of header XXX from client to server</li>
- * <li><code>sc(XXX)</code>: The value of header XXX from server to client </li>
- * <li><code>sc-status</code>:  The status code</li>
- * <li><code>time</code>:  Time the request was served</li>
- * <li><code>time-taken</code>:  Time (in seconds) taken to serve the request</li>
- * <li><code>x-A(XXX)</code>: Pull XXX attribute from the servlet context </li>
- * <li><code>x-C(XXX)</code>: Pull the first cookie of the name XXX </li>
- * <li><code>x-O(XXX)</code>: Pull the all response header values XXX </li>
- * <li><code>x-R(XXX)</code>: Pull XXX attribute from the servlet request </li>
- * <li><code>x-S(XXX)</code>: Pull XXX attribute from the session </li>
- * <li><code>x-P(...)</code>:  Call request.getParameter(...)
- *                             and URLencode it. Helpful to capture
- *                             certain POST parameters.
+ * <li><code>c-dns</code>:  Client hostname</li> 获取远程请求人的host,此时可能是代理服务器或者nginx的host,因为实现是request.getRemoteHost()
+ * <li><code>c-ip</code>:  Client ip address</li> 获取远程请求人的IP,此时可能是代理服务器或者nginx的ip,因为实现是request.getRemoteAddr()
+ * <li><code>bytes</code>:  bytes served</li>  打印发送的字节长度 ,代码 response.getContentCountLong(),如果没有该字段,则返回"-"
+   cs表示从客户端到服务端的过程中获取信息
+ * <li><code>cs-method</code>:  request method</li>  输出http的请求头 request.getMethod()
+ * <li><code>cs-uri</code>:  The full uri requested</li> 输出 request.getRequestURI()?request.getQueryString()
+ * <li><code>cs-uri-query</code>:  The query string</li>  输出request.getQueryString()
+ * <li><code>cs-uri-stem</code>:  The uri without query string</li> 输出 request.getRequestURI(),默认是"-"
+ * <li><code>date</code>:  The date in yyyy-mm-dd  format for GMT</li> 获取yyyy-mm-dd格式的日期
+ * <li><code>s-dns</code>: The server dns entry </li> 获取tomcat所在服务器节点,用于多台tomcat服务器的时候,知道日志是从哪台机器上打印出来的---InetAddress.getLocalHost().getHostName();
+ * <li><code>s-ip</code>:  The server ip address</li> 获取tomcat所在服务器节点,用于多台tomcat服务器的时候,知道日志是从哪台机器上打印出来的---InetAddress.getLocalHost().getHostAddress();
+ * <li><code>cs(XXX)</code>:  The value of header XXX from client to server</li> 从request.getHeader中获取key对应的值
+ sc 表示从服务端向客户端过程中获取信息
+ * <li><code>sc(XXX)</code>: The value of header XXX from server to client </li> 从response.getHeader中获取key对应的值
+ * <li><code>sc-status</code>:  The status code</li>  打印http的状态码 response.getStatus(),默认是-
+ * <li><code>time</code>:  Time the request was served</li>  获取HH:mm:ss格式的日期
+ * <li><code>time-taken</code>:  Time (in seconds) taken to serve the request</li> 获取HH:mm:ss格式的日期 + long类型的请求操作耗时时间
+ * <li><code>x-A(XXX)</code>: Pull XXX attribute from the servlet context </li>  从request.getContext().getServletContext().getAttribute()中获取key对应的值
+ * <li><code>x-C(XXX)</code>: Pull the first cookie of the name XXX </li>  从request.getCookies()中获取key对应的值
+ * <li><code>x-O(XXX)</code>: Pull the all response header values XXX </li>  获取response.getHeaderValues(header)中list,转换成逗号分割的字符串
+ * <li><code>x-R(XXX)</code>: Pull XXX attribute from the servlet request </li>  从request.getAttribute(attribute)中获取key对应的值
+ * <li><code>x-S(XXX)</code>: Pull XXX attribute from the session </li>  从session.getAttribute(attribute)中获取key对应的值
+ * <li><code>x-P(...)</code>:  Call request.getParameter(...) and URLencode it. Helpful to capture certain POST parameters.  获取URLEncoder.encode(request.getParameter(parameter))
+ * </li>
+ * 
  * </li>
  * <li>For any of the x-H(...) the following method will be called from the
  *                HttpServletRequest object </li>
- * <li><code>x-H(authType)</code>: getAuthType </li>
- * <li><code>x-H(characterEncoding)</code>: getCharacterEncoding </li>
- * <li><code>x-H(contentLength)</code>: getContentLength </li>
- * <li><code>x-H(locale)</code>:  getLocale</li>
- * <li><code>x-H(protocol)</code>: getProtocol </li>
- * <li><code>x-H(remoteUser)</code>:  getRemoteUser</li>
- * <li><code>x-H(requestedSessionId)</code>: getRequestedSessionId</li>
- * <li><code>x-H(requestedSessionIdFromCookie)</code>:
- *                  isRequestedSessionIdFromCookie </li>
- * <li><code>x-H(requestedSessionIdValid)</code>:
- *                  isRequestedSessionIdValid</li>
- * <li><code>x-H(scheme)</code>:  getScheme</li>
- * <li><code>x-H(secure)</code>:  isSecure</li>
+ * <li><code>x-H(authType)</code>: getAuthType </li>  从request.getAuthType()获取值
+ * <li><code>x-H(characterEncoding)</code>: getCharacterEncoding </li>  从request.getCharacterEncoding()获取值
+ * <li><code>x-H(contentLength)</code>: getContentLength </li> 从request.getContentLength()获取值
+ * <li><code>x-H(locale)</code>:  getLocale</li> 从request.getLocale()获取值
+ * <li><code>x-H(protocol)</code>: getProtocol </li> 从request.getProtocol()获取值
+ * <li><code>x-H(remoteUser)</code>:  getRemoteUser</li> 从request.getRemoteUser()获取值
+
+ * <li><code>x-H(requestedSessionId)</code>: getRequestedSessionId</li> 从request.getRequestedSessionId()获取值
+ * <li><code>x-H(requestedSessionIdFromCookie)</code>:isRequestedSessionIdFromCookie </li> 从request.isRequestedSessionIdFromCookie()获取值
+ * <li><code>x-H(requestedSessionIdValid)</code>: isRequestedSessionIdValid</li> 从request.isRequestedSessionIdValid()获取值
+ * <li><code>x-H(scheme)</code>:  getScheme</li> 从request.getScheme()获取值
+ * <li><code>x-H(secure)</code>:  isSecure</li> 从request.isSecure()获取值
  * </ul>
  *
  *
@@ -126,6 +127,11 @@ import org.apache.juli.logging.LogFactory;
  * @author Peter Rossbach
  * 
  * @version $Id: ExtendedAccessLogValve.java 1205119 2011-11-22 18:17:22Z kkolinko $
+ * 
+ * 对访问日志的扩展----
+ * 与AccessLogValve不同的是:
+ * 1.使用的是全名,而不是字母缩写
+ * 2.增加了若干个细节属性获取
  */
 
 public class ExtendedAccessLogValve
@@ -163,7 +169,7 @@ public class ExtendedAccessLogValve
     /**
      *  Wrap the incoming value into quotes and escape any inner
      *  quotes with double quotes.
-     *
+     *  结果是用单引号包装所有的字符,并且字符中如果有单引号,则将其转换成双引号
      *  @param value - The value to wrap quotes around
      *  @return '-' if empty of null. Otherwise, toString() will
      *     be called on the object and the value will be wrapped
@@ -185,18 +191,18 @@ public class ExtendedAccessLogValve
             return "-";
         }
 
-        /* Wrap all quotes in double quotes. */
-        StringBuffer buffer = new StringBuffer(svalue.length() + 2);
-        buffer.append('\'');
+        /* Wrap all quotes in double quotes.将所有单引号转换成双引号 */
+        StringBuffer buffer = new StringBuffer(svalue.length() + 2);//用单引号包装字符串,所以多2个字节
+        buffer.append('\'');//单引号
         int i = 0;
         while (i < svalue.length()) {
-            int j = svalue.indexOf('\'', i);
+            int j = svalue.indexOf('\'', i);//找到下一个单引号位置
             if (j == -1) {
                 buffer.append(svalue.substring(i));
                 i = svalue.length();
             } else {
                 buffer.append(svalue.substring(i, j + 1));
-                buffer.append('"');
+                buffer.append('"');//将单引号转换成双引号
                 i = j + 2;
             }
         }
@@ -210,7 +216,7 @@ public class ExtendedAccessLogValve
      */
     protected synchronized void open() {
         super.open();
-        if (currentLogFile.length()==0) {
+        if (currentLogFile.length()==0) {//文件头写入若干行内容
             writer.println("#Fields: " + pattern);
             writer.println("#Version: 2.0");
             writer.println("#Software: " + ServerInfo.getServerInfo());
@@ -220,41 +226,43 @@ public class ExtendedAccessLogValve
 
     // ------------------------------------------------------ Lifecycle Methods
 
-
+    //获取当前日期yyyy-MM-dd
     protected static class DateElement implements AccessLogElement {
-        // Milli-seconds in 24 hours
+        // Milli-seconds in 24 hours 表示24小时
         private static final long INTERVAL = (1000 * 60 * 60 * 24);
         
+        //每一个线程持有一个独立的时间格式化对象
         private static final ThreadLocal<ElementTimestampStruct> currentDate =
                 new ThreadLocal<ElementTimestampStruct>() {
             protected ElementTimestampStruct initialValue() {
-                return new ElementTimestampStruct("yyyy-MM-dd");
+                return new ElementTimestampStruct("yyyy-MM-dd");//默认精确到天
             }
         };
                 
         public void addElement(StringBuffer buf, Date date, Request request,
                 Response response, long time) {
             ElementTimestampStruct eds = currentDate.get();
-            long millis = eds.currentTimestamp.getTime();
+            long millis = eds.currentTimestamp.getTime();//获取以前存储的时间
             if (date.getTime() > (millis + INTERVAL -1) ||
-                    date.getTime() < millis) {
+                    date.getTime() < millis) {//说明时间已经超过了24小时,要重新格式化新的时间
                 eds.currentTimestamp.setTime(
-                        date.getTime() - (date.getTime() % INTERVAL));
+                        date.getTime() - (date.getTime() % INTERVAL));//重新设置新的时间--设置为当前日期最接近的天
                 eds.currentTimestampString =
-                    eds.currentTimestampFormat.format(eds.currentTimestamp);
+                    eds.currentTimestampFormat.format(eds.currentTimestamp);//重新格式化新的时间
             }
             buf.append(eds.currentTimestampString);            
         }
     }
     
+    //输出当前时间--格式HH:mm:ss
     protected static class TimeElement implements AccessLogElement {
         // Milli-seconds in a second 
-        private static final long INTERVAL = 1000;
+        private static final long INTERVAL = 1000;//精确到秒
         
         private static final ThreadLocal<ElementTimestampStruct> currentTime =
                 new ThreadLocal<ElementTimestampStruct>() {
             protected ElementTimestampStruct initialValue() {
-                return new ElementTimestampStruct("HH:mm:ss");
+                return new ElementTimestampStruct("HH:mm:ss");//格式化时间
             }
         };
             
@@ -262,17 +270,18 @@ public class ExtendedAccessLogValve
                 Response response, long time) {
             ElementTimestampStruct eds = currentTime.get();
             long millis = eds.currentTimestamp.getTime();
-            if (date.getTime() > (millis + INTERVAL -1) ||
+            if (date.getTime() > (millis + INTERVAL -1) || //说明超过了一秒
                     date.getTime() < millis) {
                 eds.currentTimestamp.setTime(
-                        date.getTime() - (date.getTime() % INTERVAL));
+                        date.getTime() - (date.getTime() % INTERVAL));//更新成最近的一秒
                 eds.currentTimestampString =
                     eds.currentTimestampFormat.format(eds.currentTimestamp);
             }
-            buf.append(eds.currentTimestampString);            
+            buf.append(eds.currentTimestampString);//追加时间
         }
     }
     
+    //从request.getHeader中获取key对应的值
     protected class RequestHeaderElement implements AccessLogElement {
         private String header;
         
@@ -285,6 +294,7 @@ public class ExtendedAccessLogValve
         }
     }
     
+    //从response.getHeader中获取key对应的值
     protected class ResponseHeaderElement implements AccessLogElement {
         private String header;
         
@@ -298,6 +308,7 @@ public class ExtendedAccessLogValve
         }
     }
     
+    //从request.getContext().getServletContext().getAttribute()中获取key对应的值
     protected class ServletContextElement implements AccessLogElement {
         private String attribute;
         
@@ -306,11 +317,11 @@ public class ExtendedAccessLogValve
         }
         public void addElement(StringBuffer buf, Date date, Request request,
                 Response response, long time) {
-            buf.append(wrap(request.getContext().getServletContext()
-                    .getAttribute(attribute)));
+            buf.append(wrap(request.getContext().getServletContext().getAttribute(attribute)));
         }
     }
     
+    //从request.getCookies()中获取key对应的值
     protected class CookieElement implements AccessLogElement {
         private String name;
         
@@ -358,6 +369,7 @@ public class ExtendedAccessLogValve
         }
     }
     
+    //从request.getAttribute(attribute)中获取key对应的值
     protected class RequestAttributeElement implements AccessLogElement { 
         private String attribute;
         
@@ -371,6 +383,7 @@ public class ExtendedAccessLogValve
         }        
     }
     
+    //从session.getAttribute(attribute)中获取key对应的值
     protected class SessionAttributeElement implements AccessLogElement {
         private String attribute;
         
@@ -413,9 +426,9 @@ public class ExtendedAccessLogValve
     protected class PatternTokenizer {
         private StringReader sr = null;
         private StringBuffer buf = new StringBuffer();
-        private boolean ended = false;
-        private boolean subToken;
-        private boolean parameter;
+        private boolean ended = false;//true表示解析完成
+        private boolean subToken;//遇见-字符
+        private boolean parameter;//遇见(
         
         public PatternTokenizer(String str) {
             sr = new StringReader(str);
@@ -437,20 +450,20 @@ public class ExtendedAccessLogValve
             subToken = false;
             parameter = false;
             
-            int c = sr.read();
+            int c = sr.read();//每次读取一个字节
             while (c != -1) {
                 switch (c) {
-                case ' ':
+                case ' '://遇见空格就结束
                     result = buf.toString();
                     buf = new StringBuffer();
                     buf.append((char) c);
                     return result;
-                case '-':
+                case '-'://遇见-也结束
                     result = buf.toString();
                     buf = new StringBuffer();
                     subToken = true;
                     return result;
-                case '(':
+                case '('://遇见(也结束
                     result = buf.toString();
                     buf = new StringBuffer();
                     parameter = true;
@@ -472,6 +485,7 @@ public class ExtendedAccessLogValve
             }
         }
         
+        //获取()内容
         public String getParameter()throws IOException {
             String result;
             if (!parameter) {
@@ -480,7 +494,7 @@ public class ExtendedAccessLogValve
             parameter = false;
             int c = sr.read();
             while (c != -1) {
-                if (c == ')') {
+                if (c == ')') {//获取()内容
                     result = buf.toString();
                     buf = new StringBuffer();
                     return result;
@@ -526,6 +540,7 @@ public class ExtendedAccessLogValve
         
     }
     
+    //入口
     protected AccessLogElement[] createLogElements() {
         if (log.isDebugEnabled()) {
             log.debug("decodePattern, pattern =" + pattern);
@@ -574,39 +589,39 @@ public class ExtendedAccessLogValve
     
     protected AccessLogElement getLogElement(String token, PatternTokenizer tokenizer) throws IOException {
         if ("date".equals(token)) {
-            return new DateElement();
+            return new DateElement();//记录当前日期
         } else if ("time".equals(token)) {
             if (tokenizer.hasSubToken()) {
                 String nextToken = tokenizer.getToken();
                 if ("taken".equals(nextToken)) {
-                    return new ElapsedTimeElement(false);                
+                    return new ElapsedTimeElement(false);//打印请求到response的处理时间                
                 }
             } else {
-                return new TimeElement();
+                return new TimeElement();//记录当前时间
             }
         } else if ("bytes".equals(token)) {
-            return new ByteSentElement(true);
+            return new ByteSentElement(true);//打印发送的字节长度 ,代码 response.getContentCountLong(),如果没有该字段,则返回"-"
         } else if ("cached".equals(token)) {
             /* I don't know how to evaluate this! */
             return new StringElement("-");
         } else if ("c".equals(token)) {
             String nextToken = tokenizer.getToken();
             if ("ip".equals(nextToken)) {
-                return new RemoteAddrElement();
+                return new RemoteAddrElement();//获取远程请求人的IP,此时可能是代理服务器或者nginx的ip,因为实现是request.getRemoteAddr()
             } else if ("dns".equals(nextToken)) {
-                return new HostElement();
+                return new HostElement();//获取远程请求人的host,此时可能是代理服务器或者nginx的host,因为实现是request.getRemoteHost()
             }
         } else if ("s".equals(token)) {
             String nextToken = tokenizer.getToken();
             if ("ip".equals(nextToken)) {
-                return new LocalAddrElement();
+                return new LocalAddrElement();//获取tomcat所在服务器节点,用于多台tomcat服务器的时候,知道日志是从哪台机器上打印出来的---InetAddress.getLocalHost().getHostAddress();
             } else if ("dns".equals(nextToken)) {
                 return new AccessLogElement() {
                     public void addElement(StringBuffer buf, Date date,
                             Request request, Response response, long time) {
                         String value;
                         try {
-                            value = InetAddress.getLocalHost().getHostName();
+                            value = InetAddress.getLocalHost().getHostName();//获取本地的host
                         } catch (Throwable e) {
                             value = "localhost";
                         }
@@ -632,14 +647,14 @@ public class ExtendedAccessLogValve
         if (tokenizer.hasSubToken()) {
             String token = tokenizer.getToken();
             if ("method".equals(token)) {
-                return new MethodElement();
+                return new MethodElement(); //输出http的请求头 request.getMethod()
             } else if ("uri".equals(token)) {
                 if (tokenizer.hasSubToken()) {
                     token = tokenizer.getToken();
                     if ("stem".equals(token)) {
-                        return new RequestURIElement();
+                        return new RequestURIElement();//输出 request.getRequestURI(),默认是"-"
                     } else if ("query".equals(token)) {
-                        return new AccessLogElement() {
+                        return new AccessLogElement() {//输出request.getQueryString()
                             public void addElement(StringBuffer buf, Date date,
                                     Request request, Response response,
                                     long time) {
@@ -655,7 +670,7 @@ public class ExtendedAccessLogValve
                 } else {
                     return new AccessLogElement() {
                         public void addElement(StringBuffer buf, Date date,
-                                Request request, Response response, long time) {
+                                Request request, Response response, long time) {//输出 request.getRequestURI()?request.getQueryString()
                             String query = request.getQueryString();
                             if (query == null) {
                                 buf.append(request.getRequestURI());
@@ -674,7 +689,7 @@ public class ExtendedAccessLogValve
                 log.error("No closing ) found for in decode");
                 return null;
             }
-            return new RequestHeaderElement(parameter);
+            return new RequestHeaderElement(parameter);//从request.getHeader中获取key对应的值
         }
         log.error("The next characters couldn't be decoded: "
                 + tokenizer.getRemains());
@@ -686,7 +701,7 @@ public class ExtendedAccessLogValve
         if (tokenizer.hasSubToken()) {
             String token = tokenizer.getToken();
             if ("status".equals(token)) {
-                return new HttpStatusCodeElement();
+                return new HttpStatusCodeElement();//打印http的状态码 response.getStatus(),默认是-
             } else if ("comment".equals(token)) {
                 return new StringElement("?");
             }
@@ -696,7 +711,7 @@ public class ExtendedAccessLogValve
                 log.error("No closing ) found for in decode");
                 return null;
             }
-            return new ResponseHeaderElement(parameter);
+            return new ResponseHeaderElement(parameter);//从response.getHeader中获取key对应的值
         }
         log.error("The next characters couldn't be decoded: "
                 + tokenizer.getRemains());
@@ -838,9 +853,10 @@ public class ExtendedAccessLogValve
         return null;
     }
 
+    //记录每一个线程下的时间格式
     private static class ElementTimestampStruct {
-        private Date currentTimestamp = new Date(0);
-        private SimpleDateFormat currentTimestampFormat;
+        private Date currentTimestamp = new Date(0);//当前时间,因为是Date对象,所以后期可以通过setTime方式更改时间
+        private SimpleDateFormat currentTimestampFormat;//一个线程持有一个格式,因为SimpleDateFormat是非线程安全的
         private String currentTimestampString;
         
         ElementTimestampStruct(String format) {

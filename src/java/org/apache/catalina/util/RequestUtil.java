@@ -52,6 +52,7 @@ public final class RequestUtil {
      * codes in the request URL that is often reported in error messages.
      *
      * @param message The message string to be filtered
+     * 将特殊关键词替换成HTML语法
      */
     public static String filter(String message) {
 

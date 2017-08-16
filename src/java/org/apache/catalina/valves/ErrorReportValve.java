@@ -47,6 +47,8 @@ import org.apache.catalina.util.StringManager;
  * @author <a href="mailto:stefano@apache.org">Stefano Mazzocchi</a>
  * @author Yoav Shapira
  * @version $Id: ErrorReportValve.java 1417925 2012-12-06 14:51:43Z kkolinko $
+ * 
+ * 当request发生请求过程中产生异常的时候,要将异常的输出重新打印给客户端,采用手动输入HTML的形式打印异常信息,即经常看到的500这样的错误页面
  */
 
 public class ErrorReportValve
@@ -102,6 +104,7 @@ public class ErrorReportValve
         // Perform the request
         getNext().invoke(request, response);
 
+        //执行完请求后,发现请求过程中出现异常
         Throwable throwable =
             (Throwable) request.getAttribute(Globals.EXCEPTION_ATTR);
 
@@ -122,7 +125,7 @@ public class ErrorReportValve
             }
 
             response.sendError
-                (HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                (HttpServletResponse.SC_INTERNAL_SERVER_ERROR);//发送500错误码
 
         }
 
@@ -147,6 +150,7 @@ public class ErrorReportValve
      * @param response The response being generated
      * @param throwable The exception that occurred (which possibly wraps
      *  a root cause exception
+     *  打印错误信息给客户端
      */
     protected void report(Request request, Response response,
                           Throwable throwable) {
@@ -161,7 +165,7 @@ public class ErrorReportValve
             return;
         }
 
-        String message = RequestUtil.filter(response.getMessage());
+        String message = RequestUtil.filter(response.getMessage());//将特殊关键词替换成HTML语法
         if (message == null) {
             if (throwable != null) {
                 String exceptionMessage = throwable.getMessage();
@@ -278,6 +282,7 @@ public class ErrorReportValve
     /**
      * Print out a partial servlet stack trace (truncating at the last 
      * occurrence of javax.servlet.).
+     * 打印javax.servlet包下发生的异常,因为让外界不知道tomcat发生了什么
      */
     protected String getPartialServletStackTrace(Throwable t) {
         StringBuffer trace = new StringBuffer();

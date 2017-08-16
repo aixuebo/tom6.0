@@ -43,16 +43,19 @@ import org.apache.juli.logging.LogFactory;
  * Tomcat port of <a href="http://httpd.apache.org/docs/trunk/mod/mod_remoteip.html">mod_remoteip</a>, this valve replaces the apparent
  * client remote IP address and hostname for the request with the IP address list presented by a proxy or a load balancer via a request
  * headers (e.g. "X-Forwarded-For").
+ * 当客户端请求的远程的ip和host 经过代理或者负载均衡后,是没有办法获取到客户端真实的ip的
  * </p>
  * <p>
  * Another feature of this valve is to replace the apparent scheme (http/https) and server port with the scheme presented by a proxy or a
  * load balancer via a request header (e.g. "X-Forwarded-Proto").
+ * 通过X-Forwarded-Proto属性,可以更改协议以及服务器端口,因为客户端的协议可能和代理的协议不一样
  * </p>
  * <p>
  * This valve proceeds as follows:
+ * 处理流程
  * </p>
  * <p>
- * If the incoming <code>request.getRemoteAddr()</code> matches the valve's list of internal proxies :
+ * If the incoming <code>request.getRemoteAddr()</code> matches the valve's list of internal proxies :如果请求的ip是内部网络ip
  * <ul>
  * <li>Loop on the comma delimited list of IPs and hostnames passed by the preceding load balancer or proxy in the given request's Http
  * header named <code>$remoteIpHeader</code> (default value <code>x-forwarded-for</code>). Values are processed in right-to-left order.</li>
@@ -356,6 +359,7 @@ public class RemoteIpValve extends ValveBase {
     
     /**
      * {@link Pattern} for a comma delimited string that support whitespace characters
+     * 按照逗号进行拆分
      */
     private static final Pattern commaSeparatedValuesPattern = Pattern.compile("\\s*,\\s*");
     
@@ -396,6 +400,7 @@ public class RemoteIpValve extends ValveBase {
      * Convert a given comma delimited list of regular expressions into an array of String
      * 
      * @return array of patterns (non <code>null</code>)
+     * 按照逗号进行拆分
      */
     protected static String[] commaDelimitedListToStringArray(String commaDelimitedStrings) {
         return (commaDelimitedStrings == null || commaDelimitedStrings.length() == 0) ? new String[0] : commaSeparatedValuesPattern
@@ -424,6 +429,7 @@ public class RemoteIpValve extends ValveBase {
     
     /**
      * Return <code>true</code> if the given <code>str</code> matches at least one of the given <code>patterns</code>.
+     * true表示匹配一个表达式即可
      */
     protected static boolean matchesOne(String str, Pattern... patterns) {
         for (Pattern pattern : patterns) {
@@ -446,6 +452,9 @@ public class RemoteIpValve extends ValveBase {
     
     /**
      * @see #setInternalProxies(String)
+     * 判断是内部ip地址的正则表达式
+     * 比如10.    192.168.  169.254.  127.
+     * 
      */
     private Pattern[] internalProxies = new Pattern[] {
         Pattern.compile("10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}"), Pattern.compile("192\\.168\\.\\d{1,3}\\.\\d{1,3}"),
@@ -554,19 +563,21 @@ public class RemoteIpValve extends ValveBase {
      */
     @Override
     public void invoke(Request request, Response response) throws IOException, ServletException {
+    	//先获取客户端正常的ip和host,但是此时可能是代理服务器或者负载均衡服务器的ip和host
         final String originalRemoteAddr = request.getRemoteAddr();
         final String originalRemoteHost = request.getRemoteHost();
+        //获取请求协议 以及服务端提供的端口
         final String originalScheme = request.getScheme();
         final boolean originalSecure = request.isSecure();
         final int originalServerPort = request.getServerPort();
         
-        if (matchesOne(originalRemoteAddr, internalProxies)) {
+        if (matchesOne(originalRemoteAddr, internalProxies)) {//说明该ip值内网ip,即一定不会是真实的客户端ip
             String remoteIp = null;
             // In java 6, proxiesHeaderValue should be declared as a java.util.Deque
             LinkedList<String> proxiesHeaderValue = new LinkedList<String>();
-            StringBuffer concatRemoteIpHeaderValue = new StringBuffer();
+            StringBuffer concatRemoteIpHeaderValue = new StringBuffer();//所有的X-Forwarded-For对应的值,用逗号拆分
             
-            for (Enumeration<String> e = request.getHeaders(remoteIpHeader); e.hasMoreElements();) {
+            for (Enumeration<String> e = request.getHeaders(remoteIpHeader); e.hasMoreElements();) {//获取所有的X-Forwarded-For对应的值
                 if (concatRemoteIpHeaderValue.length() > 0) {
                     concatRemoteIpHeaderValue.append(", ");
                 }
@@ -574,17 +585,17 @@ public class RemoteIpValve extends ValveBase {
                 concatRemoteIpHeaderValue.append(e.nextElement());
             }
 
-            String[] remoteIpHeaderValue = commaDelimitedListToStringArray(concatRemoteIpHeaderValue.toString());
+            String[] remoteIpHeaderValue = commaDelimitedListToStringArray(concatRemoteIpHeaderValue.toString());//按照逗号进行拆分
             int idx;
             // loop on remoteIpHeaderValue to find the first trusted remote ip and to build the proxies chain
-            for (idx = remoteIpHeaderValue.length - 1; idx >= 0; idx--) {
+            for (idx = remoteIpHeaderValue.length - 1; idx >= 0; idx--) {//循环每一个ip
                 String currentRemoteIp = remoteIpHeaderValue[idx];
                 remoteIp = currentRemoteIp;
-                if (matchesOne(currentRemoteIp, internalProxies)) {
+                if (matchesOne(currentRemoteIp, internalProxies)) {//说明该ip也是内部ip
                     // do nothing, internalProxies IPs are not appended to the
-                } else if (matchesOne(currentRemoteIp, trustedProxies)) {
+                } else if (matchesOne(currentRemoteIp, trustedProxies)) {//说明是代理服务器的IP
                     proxiesHeaderValue.addFirst(currentRemoteIp);
-                } else {
+                } else {//此时说明找到外网IP了
                     idx--; // decrement idx because break statement doesn't do it
                     break;
                 }
@@ -642,15 +653,15 @@ public class RemoteIpValve extends ValveBase {
                           + originalScheme + "' will be seen as newRemoteAddr='" + request.getRemoteAddr() + "', newRemoteHost='"
                           + request.getRemoteHost() + "', newScheme='" + request.getScheme() + "', newSecure='" + request.isSecure() + "'");
             }
-        } else {
+        } else {//因为ip就是远程客户端的ip
             if (log.isDebugEnabled()) {
                 log.debug("Skip RemoteIpValve for request " + request.getRequestURI() + " with originalRemoteAddr '"
                         + request.getRemoteAddr() + "'");
             }
         }
         try {
-            getNext().invoke(request, response);
-        } finally {
+            getNext().invoke(request, response);//继续执行下面的value
+        } finally {//重新还原原始的ip
             request.setRemoteAddr(originalRemoteAddr);
             request.setRemoteHost(originalRemoteHost);
             

@@ -46,11 +46,11 @@ import org.apache.catalina.util.StringManager;
  * To use, copy into the server/classes directory of the Tomcat installation
  * and configure in server.xml as:
  * <pre>
- *      &lt;Valve className="org.apache.catalina.valves.JDBCAccessLogValve"
+ *      <Valve className="org.apache.catalina.valves.JDBCAccessLogValve"
  *          driverName="<i>your_jdbc_driver</i>"
  *          connectionURL="<i>your_jdbc_url</i>"
  *          pattern="combined" resolveHosts="false"
- *      /&gt;
+ *      />
  * </pre>
  * </p>
  * <p>
@@ -113,6 +113,7 @@ import org.apache.catalina.util.StringManager;
  * 
  * @author Andre de Jesus
  * @author Peter Rossbach
+ * 将日志的访问信息存储到数据库中,这个value意义不大,因为会造成数据库写入的压力,同时每一个请求都插入到数据库,会影响服务器性能
  */
 
 public final class JDBCAccessLogValve extends ValveBase
@@ -175,12 +176,14 @@ public final class JDBCAccessLogValve extends ValveBase
     
    /**
      * The connection username to use when trying to connect to the database.
+     * 访问数据库的username
      */
     protected String connectionName = null;
 
 
     /**
      * The connection URL to use when trying to connect to the database.
+     * 访问数据库的密码
      */
     protected String connectionPassword = null;
 
@@ -204,7 +207,7 @@ public final class JDBCAccessLogValve extends ValveBase
     private String refererField;
     private String userAgentField;
     private String pattern;
-    private boolean resolveHosts;
+    private boolean resolveHosts;//true表示获取远程用户的host,false获取远程用户的ip
 
 
     private Connection conn;
@@ -481,16 +484,16 @@ public final class JDBCAccessLogValve extends ValveBase
         if(request != null)
             query = request.getRequestURI();
         
-        long bytes = response.getContentCountLong() ;
+        long bytes = response.getContentCountLong() ;//返回的字节数
         if(bytes < 0)
             bytes = 0;
-        int status = response.getStatus();
+        int status = response.getStatus();//返回的状态
         String virtualHost = EMPTY;
         String method = EMPTY;
         String referer = EMPTY;
         String userAgent = EMPTY;
         if (pattern.equals("combined") && request != null) {
-            virtualHost = request.getServerName();
+            virtualHost = request.getServerName();//服务器name
             method = request.getMethod();
             referer = request.getHeader("referer");
             userAgent = request.getHeader("user-agent");
@@ -576,6 +579,7 @@ public final class JDBCAccessLogValve extends ValveBase
      * this AccessLogValve.
      *
      * @exception SQLException if a database error occurs
+     * 打开连接
      */
     protected void open() throws SQLException {
 
