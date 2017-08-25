@@ -20,11 +20,12 @@ package org.apache.coyote;
 
 /**
  * Enumerated class containing the adapter event codes.
+ * 相当于事件的适配器
  * Actions represent callbacks from the servlet container to the coyote
  * connector.
  *
  * Actions are implemented by ProtocolHandler, using the ActionHook interface.
- *
+ * 可以理解成事件
  * @see ProtocolHandler
  * @see ActionHook
  * @author Remy Maucherat
@@ -59,10 +60,10 @@ public final class ActionCode {
     public static final ActionCode ACTION_RESET = new ActionCode(6);
 
 
-    public static final ActionCode ACTION_START = new ActionCode(7);
+    public static final ActionCode ACTION_START = new ActionCode(7);//开始
 
 
-    public static final ActionCode ACTION_STOP = new ActionCode(8);
+    public static final ActionCode ACTION_STOP = new ActionCode(8);//结束
 
 
     public static final ActionCode ACTION_WEBAPP = new ActionCode(9);

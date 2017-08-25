@@ -84,8 +84,8 @@ public class Http11Processor implements ActionHook {
     // ------------------------------------------------------------ Constructor
 
 /**
- * @param headerBufferSize Maximum size of the HTTP message header.
- * @param endpoint
+ * @param headerBufferSize Maximum size of the HTTP message header.最大的获取http的头的字节数
+ * @param endpoint 终端,即真正的server socket 以及线程池
  */
     public Http11Processor(int headerBufferSize, JIoEndpoint endpoint) {
 
@@ -765,6 +765,7 @@ public class Http11Processor implements ActionHook {
      *               and the HTTP responses will be written.
      *  
      * @throws IOException error during an I/O operation
+     * 服务端去解析一个socket内容
      */
     public void process(Socket theSocket)
         throws IOException {

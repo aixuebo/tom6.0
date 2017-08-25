@@ -631,8 +631,10 @@ public class AccessLogValve extends ValveBase implements AccessLog, Lifecycle {
         if (started && getEnabled()) {                
             // Pass this request on to the next valve in our pipeline
             long t1 = System.currentTimeMillis();
-    
-            getNext().invoke(request, response);//子类value都执行完后,执行接下来代码
+            
+            BufferedResponseWrapper responseWapper = new BufferedResponseWrapper(response);
+            
+            getNext().invoke(request, responseWapper);//子类value都执行完后,执行接下来代码
     
             long t2 = System.currentTimeMillis();
             long time = t2 - t1;

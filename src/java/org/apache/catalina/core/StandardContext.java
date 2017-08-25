@@ -156,6 +156,7 @@ public class StandardContext
      */
     static {
         urlEncoder = new URLEncoder();
+        //以下内容不会被转义编码,即会原始内容输出
         urlEncoder.addSafeCharacter('~');
         urlEncoder.addSafeCharacter('-');
         urlEncoder.addSafeCharacter('_');
@@ -5789,7 +5790,7 @@ key是uri,value是location
 
         super.init();
         
-        // Notify our interested LifecycleListeners
+        // Notify our interested LifecycleListeners 产生初始化事件,ContextConfig会调用init方法解析web.xml
         lifecycle.fireLifecycleEvent(INIT_EVENT, null);
 
         // Send j2ee.state.starting notification 

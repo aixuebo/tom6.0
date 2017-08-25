@@ -1,0 +1,47 @@
+因为一旦遇见Server/Service/Engine/Host/Context标签,则会创建一个StandardContext实例对象,因此一个StandardContext实例对象只是针对一个具体的Context
+一、管道
+内部持有一个管道pipeline.setBasic(new StandardContextValve());即针对整个Context,共用一个StandardContextValve
+
+二、属性设置含义
+Engine 设置默认的host,即如果请求的host没有匹配成功,则让其进入默认的host中
+Host 属性  虚拟主机
+1.name="localhost" 就是指代一个域名
+2.因为一个域名就是一个虚拟主机,因此里面有很多项目,因此里面可以配置很多Context项目对象
+3.appBase="webapps" 表示该host的主机所在目录,即该目录下所有的项目都属于该host的,该目录也可以是一个绝对的目录。
+
+Context设置---表示一个项目
+1.Context 可以覆盖Host的appBase的设定而不是直接修改appBase。
+eg：
+<Context path="" docBase="ROOT" debug="0"/>
+<Context path="/sample" docBase="sample" debug="0" reloadbale="true"/>
+<Context path="" docBase="D:\JavaWork\servlet\servlet" debug="0" reloadbale="true"/>
+docBase就是映射项目的物理目录,可以是绝对路径,也可以是相对路径,此时相对的是Host的appBase目录。如果没有设置docBase,则默认是appBase/ROOT 
+path: Host的虚拟目录,即tomcat知道的目录,比如host/xxx/bbb表示一个项目,此时xxx/bbb就是path,即虚拟目录
+ 
+Context 一：
+path=""（注意不是path="/")，则相当于是这个Host的虚拟根目录，docBase则指出了物理目录的位置为相对于appBase下的ROOT目录。
+因此在访问在浏览器中输入http://localhost:8080/，则访问到的是webapps下的ROOT目录。
+ 
+Context 二：
+如果你访问http://localhost:8080/sample/ ,则会访问到appBase/sample里的内容。
+ 
+Context 三：
+path=""，指的是这是Host的虚拟根目录，而docBase指出物理目录是个绝对地址，因为如果你访问http://localhost:8080/ ，
+则会访问到的是D:JavaWork/servlet/servlet 里的内容 。
+
+
+三、conf/Engine/host目录下配置文件
+<Context path="/myapp" docBase="工程地址" debug="0" reloadbale="true">
+
+
+
+问题:
+1.wapper不是server.xml中配置的,因此什么时候创建wapper容器?是不是在Context中创建的呢?
+答案:是在StandardContext中创建的,有一个方法Wrapper createWrapper() 
+解析web.xml的web-app/servlet标签的时候,创建一个Wrapper对象,调用addChild方法,添加子容器
+2.StandardWrapperValve这个value是针对一个项目的所有servlet共享一个实例？还是一个servlet在多线程下共享一个实例
+答案:是一个servlet共享一个实例
+因为一个servley创建了一个StandardWrapper实例,而一个StandardWrapper实例对应了一个管道
+swValve=new StandardWrapperValve();
+pipeline.setBasic(swValve);
+因此可以得到结论,一个StandardWrapper的管道pipeline中的StandardWrapperValve,这个value只是针对一个明确的servlet进行的拦截

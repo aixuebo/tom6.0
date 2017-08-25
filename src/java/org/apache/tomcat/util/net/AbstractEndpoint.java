@@ -21,6 +21,7 @@ public class AbstractEndpoint {
     /**
      * The maximum number of headers in a request that are allowed.
      * 100 by default. A value of less than 0 means no limit.
+     * 请求中头部最多允许的数量
      */
     private int maxHeaderCount = 100; // as in Apache HTTPD server
     public int getMaxHeaderCount() {

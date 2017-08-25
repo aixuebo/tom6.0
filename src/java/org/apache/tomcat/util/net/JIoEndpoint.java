@@ -108,12 +108,14 @@ public class JIoEndpoint extends AbstractEndpoint {
 
     /**
      * Current worker threads busy count.
+     * 表示当前woker线程工作的数量
      */
     protected int curThreadsBusy = 0;
 
 
     /**
      * Current worker threads count.
+     * 当前的worker线程数量
      */
     protected int curThreads = 0;
 
@@ -126,6 +128,7 @@ public class JIoEndpoint extends AbstractEndpoint {
 
     /**
      * Associated server socket.
+     * 开启一个服务端
      */
     protected ServerSocket serverSocket = null;
 
@@ -135,6 +138,7 @@ public class JIoEndpoint extends AbstractEndpoint {
 
     /**
      * Acceptor thread count.
+     * 可以允许多个线程去获取acceptor线程
      */
     protected int acceptorThreadCount = 0;
     public void setAcceptorThreadCount(int acceptorThreadCount) { this.acceptorThreadCount = acceptorThreadCount; }
@@ -151,6 +155,7 @@ public class JIoEndpoint extends AbstractEndpoint {
 
     /**
      * Maximum amount of worker threads.
+     * 最大的worker线程数量
      */
     protected int maxThreads = 200;
     public void setMaxThreads(int maxThreads) {
@@ -180,6 +185,7 @@ public class JIoEndpoint extends AbstractEndpoint {
     
     /**
      * Server socket port.
+     * 服务端端口
      */
     protected int port;
     public int getPort() { return port; }
@@ -188,6 +194,7 @@ public class JIoEndpoint extends AbstractEndpoint {
 
     /**
      * Address for the server socket.
+     * 服务端的ip,默认是localhost
      */
     protected InetAddress address;
     public InetAddress getAddress() { return address; }
@@ -314,6 +321,7 @@ public class JIoEndpoint extends AbstractEndpoint {
      * Bare bones interface used for socket processing. Per thread data is to be
      * stored in the ThreadWithAttributes extra folders, or alternately in
      * thread local fields.
+     * 如何真正的处理一个socket请求
      */
     public interface Handler {
         public boolean process(Socket socket);
@@ -325,6 +333,7 @@ public class JIoEndpoint extends AbstractEndpoint {
 
     /**
      * Server socket acceptor thread.
+     * 接收socket的线程
      */
     protected class Acceptor implements Runnable {
 
@@ -381,6 +390,7 @@ public class JIoEndpoint extends AbstractEndpoint {
     /**
      * This class is the equivalent of the Worker, but will simply use in an
      * external Executor thread pool.
+     * 真正一个线程去处理该socket
      */
     protected class SocketProcessor implements Runnable {
         
@@ -411,12 +421,12 @@ public class JIoEndpoint extends AbstractEndpoint {
     
     // ----------------------------------------------------- Worker Inner Class
 
-
+    //一个工作线程对象
     protected class Worker implements Runnable {
 
         protected Thread thread = null;
         protected boolean available = false;
-        protected Socket socket = null;
+        protected Socket socket = null;//分配的连接
 
         
         /**
@@ -427,17 +437,19 @@ public class JIoEndpoint extends AbstractEndpoint {
          * requests can be handled.
          *
          * @param socket TCP socket to process
+         * 分配一个请求
          */
         synchronized void assign(Socket socket) {
 
             // Wait for the Processor to get the previous Socket
-            while (available) {
+            while (available) {//如果此时该worker有socket在运行,因此要等待
                 try {
                     wait();
                 } catch (InterruptedException e) {
                 }
             }
 
+            //此时说明socket已经可以被分配了
             // Store the newly available Socket and notify our thread
             this.socket = socket;
             available = true;
@@ -449,21 +461,23 @@ public class JIoEndpoint extends AbstractEndpoint {
         /**
          * Await a newly assigned Socket from our Connector, or <code>null</code>
          * if we are supposed to shut down.
+         * 等候下一个socket发送过来
          */
         private synchronized Socket await() {
 
             // Wait for the Connector to provide a new Socket
-            while (!available) {
+            while (!available) {//说明此时没有持有socket,因为要等待
                 try {
                     wait();
                 } catch (InterruptedException e) {
                 }
             }
 
+            //代码执行到这里,说明已经有sockst了
             // Notify the Connector that we have received this Socket
             Socket socket = this.socket;
             available = false;
-            notifyAll();
+            notifyAll();//通知已经有socket了
 
             return (socket);
 
@@ -481,12 +495,12 @@ public class JIoEndpoint extends AbstractEndpoint {
             while (running) {
 
                 // Wait for the next socket to be assigned
-                Socket socket = await();
+                Socket socket = await();//等待下一个socket被分配
                 if (socket == null)
                     continue;
 
                 // Process the request from this socket
-                if (!setSocketOptions(socket) || !handler.process(socket)) {
+                if (!setSocketOptions(socket) || !handler.process(socket)) {//设置socket的属性 以及  处理该请求
                     // Close socket
                     try {
                         socket.close();
@@ -496,7 +510,7 @@ public class JIoEndpoint extends AbstractEndpoint {
 
                 // Finish up this request
                 socket = null;
-                recycleWorkerThread(this);
+                recycleWorkerThread(this);//说明此时socket执行完了,回收该worker
 
             }
 
@@ -573,7 +587,7 @@ public class JIoEndpoint extends AbstractEndpoint {
                 workers = new WorkerStack(maxThreads);
             }
 
-            // Start acceptor threads
+            // Start acceptor threads 可以允许多个线程去获取acceptor线程
             for (int i = 0; i < acceptorThreadCount; i++) {
                 Thread acceptorThread = new Thread(new Acceptor(), getName() + "-Acceptor-" + i);
                 acceptorThread.setPriority(threadPriority);
@@ -590,9 +604,10 @@ public class JIoEndpoint extends AbstractEndpoint {
         }
     }
 
+    //恢复
     public void resume() {
         if (running) {
-            paused = false;
+            paused = false;//即不让其暂停
         }
     }
 
@@ -664,6 +679,7 @@ public class JIoEndpoint extends AbstractEndpoint {
 
     /**
      * Set the options for the current socket.
+     * 设置socket的属性
      */
     protected boolean setSocketOptions(Socket socket) {
         // Process the connection
@@ -705,13 +721,14 @@ public class JIoEndpoint extends AbstractEndpoint {
      * processing a specific HTTP request, if possible.  If the maximum
      * allowed processors have already been created and are in use, return
      * <code>null</code> instead.
+     * 返回一个工作线程
      */
     protected Worker createWorkerThread() {
 
         synchronized (workers) {
-            if (workers.size() > 0) {
+            if (workers.size() > 0) {//返回空闲的work数量
                 curThreadsBusy++;
-                return workers.pop();
+                return workers.pop();//从空闲的里面获取一个
             }
             if ((maxThreads > 0) && (curThreads < maxThreads)) {
                 curThreadsBusy++;
@@ -720,9 +737,9 @@ public class JIoEndpoint extends AbstractEndpoint {
                             Integer.toString(maxThreads), address,
                             Integer.toString(port)));
                 }
-                return (newWorkerThread());
+                return (newWorkerThread());//创建一个新的工作线程
             } else {
-                if (maxThreads < 0) {
+                if (maxThreads < 0) {//无限创建工作线程
                     curThreadsBusy++;
                     return (newWorkerThread());
                 } else {
@@ -737,6 +754,7 @@ public class JIoEndpoint extends AbstractEndpoint {
     /**
      * Create and return a new processor suitable for processing HTTP
      * requests and returning the corresponding responses.
+     * 创建一个工作线程
      */
     protected Worker newWorkerThread() {
 
@@ -770,6 +788,7 @@ public class JIoEndpoint extends AbstractEndpoint {
      * Recycle the specified Processor so that it can be used again.
      *
      * @param workerThread The processor to be recycled
+     * 说明此时socket执行完了,回收该worker
      */
     protected void recycleWorkerThread(Worker workerThread) {
         synchronized (workers) {
@@ -782,6 +801,7 @@ public class JIoEndpoint extends AbstractEndpoint {
 
     /**
      * Process given socket.
+     * 找到一个处理器线程去处理该socket
      */
     protected boolean processSocket(Socket socket) {
         try {
@@ -808,7 +828,7 @@ public class JIoEndpoint extends AbstractEndpoint {
     public class WorkerStack {
         
         protected Worker[] workers = null;
-        protected int end = 0;
+        protected int end = 0;//队列剩余多少个worker
         
         public WorkerStack(int size) {
             workers = new Worker[size];
@@ -822,7 +842,7 @@ public class JIoEndpoint extends AbstractEndpoint {
          *                  element).
          */
         public void push(Worker worker) {
-            if (end < workers.length) {
+            if (end < workers.length) {//说明workers还没有填满,继续添加worker
                 workers[end++] = worker;
             } else {
                 curThreads--;
@@ -832,6 +852,7 @@ public class JIoEndpoint extends AbstractEndpoint {
         /**
          * Get the first object out of the queue. Return null if the queue
          * is empty. 
+         * 返回一个worker线程
          */
         public Worker pop() {
             if (end > 0) {
@@ -843,6 +864,7 @@ public class JIoEndpoint extends AbstractEndpoint {
         /**
          * Get the first object out of the queue, Return null if the queue
          * is empty.
+         * 返回一个worker线程
          */
         public Worker peek() {
             return workers[end];

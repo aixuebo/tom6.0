@@ -1,0 +1,6 @@
+ContextConfig
+一、init方法
+1.创建解析web.xml以及context.xml的两个规则对象 WebRuleSet 和ContextRuleSet
+
+----------
+

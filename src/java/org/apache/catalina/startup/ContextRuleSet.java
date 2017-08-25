@@ -33,6 +33,7 @@ import org.apache.tomcat.util.digester.RuleSetBase;
  * 解析Server/Service/Engine/Host/路径参数
  * 
  * 定义server.xml中Server/Service/Engine/Host/的子标签
+ * 解析Context.xml配置文件
  */
 
 public class ContextRuleSet extends RuleSetBase {

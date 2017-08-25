@@ -129,6 +129,7 @@ public class WebRuleSet extends RuleSetBase {
         digester.addRule(prefix + "web-app",
                          new IgnoreAnnotationsRule());
 
+        //添加context级别的name=value
         digester.addCallMethod(prefix + "web-app/context-param",
                                "addParameter", 2);
         digester.addCallParam(prefix + "web-app/context-param/param-name", 0);
@@ -613,6 +614,7 @@ final class SetDistributableRule extends Rule {
 /**
  * Class that calls a property setter for the top object on the stack,
  * passing the public ID of the entity we are currently processing.
+ * 获取webapp标签的publicid属性值,调用method方法
  */
 
 final class SetPublicIdRule extends Rule {

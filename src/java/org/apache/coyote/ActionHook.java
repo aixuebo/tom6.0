@@ -38,7 +38,7 @@ public interface ActionHook {
 
     /**
      * Send an action to the connector.
-     * 
+     * 可以理解成事件,当产生某一个事件的时候,可以做如何处理
      * @param actionCode Type of the action
      * @param param Action parameter
      */

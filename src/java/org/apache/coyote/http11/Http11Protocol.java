@@ -102,7 +102,7 @@ public class Http11Protocol extends AbstractProtocol
     // ----------------------------------------- ProtocolHandler Implementation
     // *
 
-
+    //存数属性以及对应的值
     protected HashMap<String, Object> attributes = new HashMap<String, Object>();
 
     
@@ -187,6 +187,7 @@ public class Http11Protocol extends AbstractProtocol
 
     }
 
+    //开启服务端
     public void start() throws Exception {
         if (this.domain != null) {
             try {
@@ -213,6 +214,7 @@ public class Http11Protocol extends AbstractProtocol
             log.info(sm.getString("http11protocol.start", getName()));
     }
 
+    //暂停
     public void pause() throws Exception {
         try {
             endpoint.pause();
@@ -224,6 +226,7 @@ public class Http11Protocol extends AbstractProtocol
             log.info(sm.getString("http11protocol.pause", getName()));
     }
 
+    //恢复
     public void resume() throws Exception {
         try {
             endpoint.resume();
@@ -545,16 +548,17 @@ public class Http11Protocol extends AbstractProtocol
         protected RequestGroupInfo global = new RequestGroupInfo();
 
         protected ConcurrentLinkedQueue<Http11Processor> recycledProcessors = 
-            new ConcurrentLinkedQueue<Http11Processor>() {//重复使用Http11Processor对象
-            protected AtomicInteger size = new AtomicInteger(0);//存储Http11Processor的数量
-            public boolean offer(Http11Processor processor) {
+            new ConcurrentLinkedQueue<Http11Processor>() {//重复使用Http11Processor对象的队列
+            protected AtomicInteger size = new AtomicInteger(0);//队列中尚未被使用的Http11Processor的数量
+            
+            public boolean offer(Http11Processor processor) {//使用完成后,还回队列
                 boolean offer = (proto.processorCache == -1) ? true : (size.get() < proto.processorCache);//true表示可以继续插入,可以插入的条件是缓存还没有满,或者没有设置缓存,即无限存放Http11Processor对象
                 //avoid over growing our cache or add after we have stopped
                 boolean result = false;
                 if ( offer ) {//可以存放Http11Processor对象
                     result = super.offer(processor);//存放对象
                     if ( result ) {//存放成功则累加size
-                        size.incrementAndGet();
+                        size.incrementAndGet();//尚未使用的可以增加1个
                     }
                 }//因为已经满了,或者虽然没有满,但是无法添加到队列中,这些都会导致result为false,一旦为false,说明无法操作该Http11Processor对象,则注销该对象
                 if (!result) unregister(processor);
@@ -563,9 +567,9 @@ public class Http11Protocol extends AbstractProtocol
             
             //取出一个Http11Processor对象后,对size-1
             public Http11Processor poll() {
-                Http11Processor result = super.poll();
+                Http11Processor result = super.poll();//从头开始获取一个对象
                 if ( result != null ) {
-                    size.decrementAndGet();
+                    size.decrementAndGet();//数量减少一个
                 }
                 return result;
             }
@@ -590,11 +594,11 @@ public class Http11Protocol extends AbstractProtocol
          * 不断从recycledProcessors队列中获取一个Http11Processor对象,进行处理,处理后将该Http11Processor对象的动作设置成ACTION_STOP,并且存储到队列中
          */
         public boolean process(Socket socket) {
-            Http11Processor processor = recycledProcessors.poll();
+            Http11Processor processor = recycledProcessors.poll();//获取头第一个元素
             try {
 
                 if (processor == null) {
-                    processor = createProcessor();
+                    processor = createProcessor();//没有获取到,则创建一个
                 }
 
                 if (processor instanceof ActionHook) {
@@ -608,7 +612,7 @@ public class Http11Protocol extends AbstractProtocol
                     processor.setSSLSupport(null);
                 }
                 
-                processor.process(socket);
+                processor.process(socket);//真正去处理socket内容
                 return false;
 
             } catch(java.net.SocketException e) {
@@ -638,7 +642,7 @@ public class Http11Protocol extends AbstractProtocol
                 if (processor instanceof ActionHook) {
                     ((ActionHook) processor).action(ActionCode.ACTION_STOP, null);
                 }
-                recycledProcessors.offer(processor);
+                recycledProcessors.offer(processor);//向队列后面追加该对象,即缓存起来
             }
             return false;
         }

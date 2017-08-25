@@ -70,6 +70,8 @@ import org.xml.sax.SAXParseException;
  * 定义server.xml中Server/Service/Engine/Host/的子标签中定义Context的时候生成该监听器对象,即ContextConfig
  * 
  * 用于一个项目的初始化以及上下文
+ * 
+ * 在standardContext会监听该事件,针对init或者start等事件进行解析
  */
 public class ContextConfig
     implements LifecycleListener {
@@ -96,6 +98,7 @@ public class ContextConfig
 
     /**
      * The Context we are associated with.
+     * 关联的Context容器
      */
     protected Context context = null;
 
@@ -109,6 +112,7 @@ public class ContextConfig
     
     /**
      * The default web application's deployment descriptor location.
+     * conf/web.xml
      */
     protected String defaultWebXml = null;
     
@@ -316,6 +320,7 @@ public class ContextConfig
 
     /**
      * Process the application configuration file, if it exists.
+     * 解析/WEB-INF/web.xml
      */
     protected void applicationWebConfig() {
 
@@ -336,7 +341,7 @@ public class ContextConfig
             }
             else {
                 stream = servletContext.getResourceAsStream
-                    (Constants.ApplicationWebXml);
+                    (Constants.ApplicationWebXml);///WEB-INF/web.xml
             }
         }
         if (stream == null) {
@@ -838,10 +843,12 @@ public class ContextConfig
     
     /**
      * Adjust docBase.
+     * 
      */
     protected void fixDocBase()
         throws IOException {
         
+    	//找到tomcat/webapps目录
         Host host = (Host) context.getParent();
         String appBase = host.getAppBase();
 
@@ -1364,19 +1371,20 @@ public class ContextConfig
         }
     }  
 
-    
+    //返回engine.getName()/host.getName()/resourceName资源
     protected String getHostConfigPath(String resourceName) {
         StringBuffer result = new StringBuffer();
         Container container = context;
-        Container host = null;
-        Container engine = null;
-        while (container != null) {
+        Container host = null;//获取host容器
+        Container engine = null;//获取引擎容器
+        while (container != null) {//获取相关的三个容器对象
             if (container instanceof Host)
                 host = container;
             if (container instanceof Engine)
                 engine = container;
             container = container.getParent();
         }
+        
         if (engine != null) {
             result.append(engine.getName()).append('/');
         }
