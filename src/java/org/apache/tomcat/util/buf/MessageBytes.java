@@ -39,7 +39,9 @@ public final class MessageBytes implements Cloneable, Serializable {
     // primary type ( whatever is set as original value )
     private int type = T_NULL;
 
-    public static final int T_NULL = 0;
+    public static final int T_NULL = 0;//说明值是null
+    
+    //以下三个类型都是类型最终是String,只是创建MessageBytes对象的时候使用的是String还是char还是byte而已,但是代表的都是String
     /** getType() is T_STR if the the object used to create the MessageBytes
         was a String */
     public static final int T_STR  = 1;

@@ -31,14 +31,14 @@ public class BufferedInputFilter implements InputFilter {
 
     // -------------------------------------------------------------- Constants
 
-    private static final String ENCODING_NAME = "buffered";
-    private static final ByteChunk ENCODING = new ByteChunk();
+    private static final String ENCODING_NAME = "buffered";//具体的编码类型字符串形式
+    private static final ByteChunk ENCODING = new ByteChunk();//编码类型
 
 
     // ----------------------------------------------------- Instance Variables
 
-    private ByteChunk buffered = null;
-    private ByteChunk tempRead = new ByteChunk(1024);
+    private ByteChunk buffered = null;//最终存储数据
+    private ByteChunk tempRead = new ByteChunk(1024);//临时存储数据
     private InputBuffer buffer;
     private boolean hasRead = false;
 
@@ -74,8 +74,8 @@ public class BufferedInputFilter implements InputFilter {
     public void setRequest(Request request) {
         // save off the Request body
         try {
-            while (buffer.doRead(tempRead, request) >= 0) {
-                buffered.append(tempRead);
+            while (buffer.doRead(tempRead, request) >= 0) {//不断的从request中获取信息,存储在临时的tempRead中
+                buffered.append(tempRead);//将临时存储的内容写出到buffered中
                 tempRead.recycle();
             }
         } catch(IOException iex) {

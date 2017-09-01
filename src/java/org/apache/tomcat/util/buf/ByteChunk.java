@@ -64,6 +64,110 @@ import java.nio.charset.Charset;
  * @author James Todd [gonzo@sun.com]
  * @author Costin Manolache
  * @author Remy Maucherat
+ * 
+ByteChunk
+一、属性
+    private byte[] buff;//存数字节的字节数组
+    private int start=0;//有效字节的开始位置
+    private int end;//有效字节的最后一个位置
+
+    private int limit=-1;//最大值,表示使用缓冲区的最大位置,不能超过该位置,如果该值>0,说明超出一定buf后,就将其写出到out流中,如果为-1,则一直留在内存中存储数据
+    
+    private Charset charset;//编码方式
+    private boolean isSet=false; //true表示buf内是有数据的
+
+    private ByteInputChannel in = null;//buf的内容从哪里不断的读出来
+    private ByteOutputChannel out = null;//buf的内容可以最终写入到哪里
+
+    boolean optimizedWrite=true;//是否优化append方法
+二、构造函数
+ByteChunk( int initial ) allocate( initial, -1 ); 初始化buffer大小为initial个
+
+三、基本方法
+1.void setBytes(byte[] b, int off, int len) 使用该参数的字节数组
+buff = b;
+start = off;
+end = start+ len;
+isSet=true;
+2.byte[] getBytes()和byte[] getBuffer()  返回return buff;
+3.int getStart() 和 int getOffset() return start; 返回buffer有效的开始字节位置
+4.int getLength() return end-start;  获得缓冲字节的有效长度,即end-start位置间隔
+5.void recycle() 和 void reset() 清空buffer内容 buff=null;
+6.void flushBuffer() 将buf的内容,即从start到end部分内容,写出到out输出流中
+7.boolean isNull() return ! isSet; true表示没有缓存数据
+
+四、appand追加方法
+1.void append( char c ) append( (byte)c); 追加一个byte
+2.void append( byte b )
+	if( limit >0 && end >= limit ) {
+	    flushBuffer();
+	}
+	buff[end++]=b;
+3.void append( ByteChunk src ) append( src.getBytes(), src.getStart(), src.getLength()); 添加若干个字节，添加长度是length个
+4.void append( byte src[], int off, int len )
+a.if( limit < 0 ) {//如果没有limit限制，则将所有信息都添加到buffer的end之后的位置，同时设置end位置为end+length
+System.arraycopy( src, off, buff, end, len ); end+=len; return;
+b.limit > 0 如果limit有限制,并且进行优化处理 optimizedWrite=true,则直接将要添加的内容输出到out流中,不经过缓存
+c.limit > 0 如果limit有限制,并且不进行优化处理 optimizedWrite=false
+检查limit-end剩余的buff长度是否能容纳要插入的len,可以的话,则将数据直接copy到buf中即可
+d.说明剩余buff的内容不能容纳要添加的len
+因此先填满buf,然后进行flushBuffer();将数据写出到out中
+然后不断的将剩余内容直接写出到out中
+
+
+五、从buffer中删除一部分数据,相当于队列一样,以此抽取出一个byte
+1.int substract(),返回buffer中接下来的一个byte
+return (buff[start++] & 0xFF);
+注意:如果数据buf中没有了,则从流中读取数据到buf
+2.int substract(ByteChunk src) 从buf中读取数据,追加到参数对应的ByteChunk中---返回向参数写入了多少个字节
+a.计算该buffer中end-start,即还有多少字节
+b.将剩余的字节内容都写入src中
+3.int substract( byte src[], int off, int len )
+注意:如果数据buf中没有了,则从流中读取数据到buf
+将从buff中读取信息,写入到src中的off之后,最多写入len个,即最多从buff中读取len个,如果buff中没有len个,则有多少写多少,返回写入了多少个字节
+
+六、equals
+1.boolean equals(String s) 
+比较b[boff++] != s.charAt(i) 比较字符换的charAt 与每一个buffer内byte,发现不一样,则返回false
+2.boolean equalsIgnoreCase(String s)
+比较Ascii.toLower(b[boff++]) != Ascii.toLower(s.charAt(i)) 比较字符换的charAt 与每一个buffer内byte,发现不一样,则返回false
+注意测试的内容是忽略大小写的
+3.boolean equals( ByteChunk bb ) return equals( bb.getBytes(), bb.getStart(), bb.getLength());
+4.boolean equals( byte b2[], int off2, int len2) 
+每一个byte相互比较
+5.boolean equals( CharChunk cc )  return equals( cc.getChars(), cc.getStart(), cc.getLength());
+6.boolean equals( char c2[], int off2, int len2)
+if ( (char)b1[off1++] != c2[off2++]) return false; 每一个byte转换成char,然后与参数对应的内容进行比较
+
+
+七、startsWith
+1.boolean startsWith(String s) 判断s中每一个s.charAt(i)是否与buf内从start开始一直都一样
+2.boolean startsWith(byte[] b2) 原理同上
+3.boolean startsWithIgnoreCase(String s, int pos)
+从buf的start+pos位置开始与s进行比较,比较的时候忽略s中的大小写
+
+八、find 以及indexof 查找相关的代码
+1.int indexOf( String src, int srcOff, int srcLen, int myOff ) {
+从buff的start+myoff位置开始查询,找到包含字符串str在srcOff到srcLen范围的字符串,相当于String.indexof("")返回的第一个匹配全字符串的位置。
+注意返回的是该位置在buffer中相对于start之后的位置,而不是buffer的真实位置
+2.static int  indexOf( byte bytes[], int off, int end, char qq )
+在byte数组中,在off和end范围内,查找qq对应的位置
+注意:返回的位置是buff最终的位置,而不是相当于off的位置
+代码:
+byte b=bytes[off]; if( b==qq ) return off;
+3.int indexOf(char c, int starting)
+在buff中从start+starting位置开始查找,找到buf中含有c的位置
+4.static int findBytes(byte bytes[], int start, int end, byte b[]) 和 static int findChars( byte buf[], int start, int end, byte c[] ) 
+上面1和2是找一个byte,而该方法是找一个字节数组中任意一个byte,只要找到了都返回找到的位置
+5.static int findChar( byte buf[], int start, int end, char c ) 
+将c转换成byte,在buf中查找该位置
+6.static int findNotChars( byte buf[], int start, int end, byte c[] )
+从start开始循环buf数组,一直到end位置，找到该数组中，第一个没有在c数组中出现的位置
+
+九、额外方法
+int getInt() 和 long getLong() ,代码Ascii.parseLong(buff, start,end-start); 表示buffer内剩余的内容是一个int或者long.,如果不是则抛异常
+static final byte[] convertToBytes(String value) 将字符串转换成字节数组
+
  */
 public final class ByteChunk implements Cloneable, Serializable {
 
@@ -76,6 +180,7 @@ public final class ByteChunk implements Cloneable, Serializable {
          * Read new bytes ( usually the internal conversion buffer ).
          * The implementation is allowed to ignore the parameters, 
          * and mutate the chunk if it wishes to implement its own buffering.
+         * 读取数据,将从实现类中读取的数据,存储到参数对应的字节数组cbuf中,读取的长度是len
          */
         public int realReadBytes(byte cbuf[], int off, int len)
             throws IOException;
@@ -87,6 +192,7 @@ public final class ByteChunk implements Cloneable, Serializable {
         /** 
          * Send the bytes ( usually the internal conversion buffer ).
          * Expect 8k output if the buffer is full.
+         * 将参数字节数组中从off开始,一共写出len个,将cbuf中的内容输出到其他地方去,至于输出到哪里,那是实现类的问题
          */
         public void realWriteBytes(byte cbuf[], int off, int len)
             throws IOException;
@@ -116,7 +222,7 @@ public final class ByteChunk implements Cloneable, Serializable {
     private int start=0;//有效字节的开始位置
     private int end;//有效字节的最后一个位置
     // How much can it grow, when data is added
-    private int limit=-1;//最大值,表示使用缓冲区的最大位置,不能超过该位置
+    private int limit=-1;//最大值,表示使用缓冲区的最大位置,不能超过该位置,如果该值>0,说明超出一定buf后,就将其写出到out流中,如果为-1,则一直留在内存中存储数据
     
     private Charset charset;
 
@@ -125,7 +231,7 @@ public final class ByteChunk implements Cloneable, Serializable {
     private ByteInputChannel in = null;
     private ByteOutputChannel out = null;
 
-    private boolean optimizedWrite=true;
+    private boolean optimizedWrite=true;//是否优化append方法
     
     /**
      * Creates a new, uninitialized ByteChunk object.
@@ -426,14 +532,14 @@ public final class ByteChunk implements Cloneable, Serializable {
 
 
     // -------------------- Removing data from the buffer --------------------
-
-    public int substract()
+    //从buffer中删除一部分数据,相当于队列一样,以此抽取出一个byte
+    public int substract() //返回buffer中接下来的一个byte
         throws IOException {
 
         if ((end - start) == 0) {
             if (in == null)
                 return -1;
-            int n = in.realReadBytes( buff, 0, buff.length );
+            int n = in.realReadBytes( buff, 0, buff.length );//注意:如果数据buf中没有了,则从流中读取数据到buf
             if (n < 0)
                 return -1;
         }
@@ -442,10 +548,10 @@ public final class ByteChunk implements Cloneable, Serializable {
 
     }
 
-    public int substract(ByteChunk src)
+    public int substract(ByteChunk src) //从buf中读取数据,追加到参数对应的ByteChunk中
         throws IOException {
 
-        if ((end - start) == 0) {
+        if ((end - start) == 0) {//继续从流中读取数据
             if (in == null)
                 return -1;
             int n = in.realReadBytes( buff, 0, buff.length );
@@ -453,17 +559,16 @@ public final class ByteChunk implements Cloneable, Serializable {
                 return -1;
         }
 
-        int len = getLength();
-        src.append(buff, start, len);
+        int len = getLength();//计算该buffer中end-start,即还有多少字节
+        src.append(buff, start, len);//将剩余的字节内容都写入src中
         start = end;
         return len;
-
     }
 
-    public int substract( byte src[], int off, int len )
+    public int substract( byte src[], int off, int len ) //将从buff中读取信息,写入到src中的off之后,最多写入len个,即最多从buff中读取len个,如果buff中没有len个,则有多少写多少,返回写入了多少个字节
         throws IOException {
 
-        if ((end - start) == 0) {
+        if ((end - start) == 0) {//如果数据buf中没有了,则从流中读取数据到buf
             if (in == null)
                 return -1;
             int n = in.realReadBytes( buff, 0, buff.length );
@@ -739,22 +844,23 @@ public final class ByteChunk implements Cloneable, Serializable {
         return true;
     }
 
+    //从buff的start+myoff位置开始查询,找到包含字符串str在srcOff到srcLen范围的字符串,相当于String.indexof("")返回的第一个匹配全字符串的位置
     public int indexOf( String src, int srcOff, int srcLen, int myOff ) {
-        char first=src.charAt( srcOff );
+        char first=src.charAt( srcOff );//获取要查找字符串的第一个位置内容
 
         // Look for first char 
         int srcEnd = srcOff + srcLen;
         
         mainLoop:
-        for( int i=myOff+start; i <= (end - srcLen); i++ ) {
-            if( buff[i] != first ) continue;
+        for( int i=myOff+start; i <= (end - srcLen); i++ ) {//从buff的start+myoff位置开始查询
+            if( buff[i] != first ) continue;//一旦发现该位置不是字符串要查找的内容,则继续
             // found first char, now look for a match
             int myPos=i+1;
             for( int srcPos=srcOff + 1; srcPos< srcEnd; ) {
-                if( buff[myPos++] != src.charAt( srcPos++ ))
+                if( buff[myPos++] != src.charAt( srcPos++ ))//只要不是,则重新查找
                     continue mainLoop;
             }
-            return i-start; // found it
+            return i-start; // found it 注意返回的是该位置在buffer中相对于start之后的位置,而不是buffer的真实位置
         }
         return -1;
     }
@@ -805,7 +911,7 @@ public final class ByteChunk implements Cloneable, Serializable {
      */
     public int indexOf(char c, int starting) {
         int ret = indexOf( buff, start+starting, end, c);
-        return (ret >= start) ? ret - start : -1;
+        return (ret >= start) ? ret - start : -1;//ret表示该字符在buffer数组中的位置,因为buffer数组从start开始才有意义,因此要ret-start才是真实的
     }
     
     /**

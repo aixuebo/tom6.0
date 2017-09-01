@@ -104,7 +104,7 @@ public class InternalInputBuffer implements InputBuffer {
 
 
     /**
-     * State.解析完header之后,设置为false
+     * State.解析完header之后,设置为false,true表示header正在解析
      */
     protected boolean parsingHeader;
 
@@ -568,18 +568,18 @@ public class InternalInputBuffer implements InputBuffer {
         //
 
         byte chr = 0;
-        while (true) {
+        while (true) {//过滤开始前很多\r信息
 
             // Read new bytes if needed 跳过多余空格,直到非空格为止,注意:如果遇到回车,则直接返回,说明已经没有header了
             if (pos >= lastValid) {
-                if (!fill())
+                if (!fill()) //读取数据
                     throw new EOFException(sm.getString("iib.eof.error"));
             }
 
             chr = buf[pos];
 
-            if ((chr == Constants.CR) || (chr == Constants.LF)) {
-                if (chr == Constants.LF) {
+            if ((chr == Constants.CR) || (chr == Constants.LF)) {//是\r \n
+                if (chr == Constants.LF) {//是\n
                     pos++;
                     return false;
                 }
@@ -613,7 +613,7 @@ public class InternalInputBuffer implements InputBuffer {
             if (buf[pos] == Constants.COLON) {//找到:号,则退出循环,冒号前的字符为start开始,pos-start长度,生成key,同时返回该key对应的value对象引用
                 colon = true;
                 //创建一个key-value形式的header头对象，将name值填充后，将空的value对象返回。后续会将其赋值。
-                headerValue = headers.addValue(buf, start, pos - start);
+                headerValue = headers.addValue(buf, start, pos - start);//说明获取header的头name
             }
             chr = buf[pos];
             if ((chr >= Constants.A) && (chr <= Constants.Z)) {//大小字母转成小写字母
@@ -757,14 +757,14 @@ public class InternalInputBuffer implements InputBuffer {
 
         int nRead = 0;
 
-        if (parsingHeader) {
+        if (parsingHeader) {//说明正在解析header,而header的长度是http协议规定死的,因此不能超出范围
 
-            if (lastValid == buf.length) {
+            if (lastValid == buf.length) {//说明已经读取到buf的结尾了
                 throw new IllegalArgumentException
                     (sm.getString("iib.requestheadertoolarge.error"));
             }
 
-            nRead = inputStream.read(buf, pos, buf.length - lastValid);
+            nRead = inputStream.read(buf, pos, buf.length - lastValid);//读取数据写到buf中,从pos位置开始写
             if (nRead > 0) {
                 lastValid = pos + nRead;
             }
@@ -780,9 +780,9 @@ public class InternalInputBuffer implements InputBuffer {
             }
             pos = end;
             lastValid = pos;
-            nRead = inputStream.read(buf, pos, buf.length - lastValid);
+            nRead = inputStream.read(buf, pos, buf.length - lastValid);//读取数据,写入到buf中,从pos位置开始写,读取大小就是buf剩余的长度
             if (nRead > 0) {
-                lastValid = pos + nRead;
+                lastValid = pos + nRead;//说明读取完成
             }
 
         }
@@ -805,25 +805,22 @@ public class InternalInputBuffer implements InputBuffer {
 
         /**
          * Read bytes into the specified chunk.
+         * 读取缓存buf的内容,设置到chunk上
          */
         public int doRead(ByteChunk chunk, Request req ) 
             throws IOException {
 
-            if (pos >= lastValid) {
+            if (pos >= lastValid) {//说明buf没有数据了,要继续读取数据填充buf
                 if (!fill())
                     return -1;
             }
 
-            int length = lastValid - pos;
-            chunk.setBytes(buf, pos, length);
+            int length = lastValid - pos;//buf中还有多少个内容
+            chunk.setBytes(buf, pos, length);//将剩余buf内容赋值给chunk
             pos = lastValid;
 
             return (length);
-
         }
-
-
     }
-
 
 }

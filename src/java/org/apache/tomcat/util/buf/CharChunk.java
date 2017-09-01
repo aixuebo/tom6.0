@@ -30,6 +30,8 @@ import java.io.Serializable;
  * @author James Todd [gonzo@sun.com]
  * @author Costin Manolache
  * @author Remy Maucherat
+ * 
+ * 详细代码说明参见ByteChunk,其实与ByteChunk类区别的不同,就在于缓存的是char,而ByteChunk缓存的是byte
  */
 public final class CharChunk implements Cloneable, Serializable, CharSequence {
 
@@ -39,6 +41,7 @@ public final class CharChunk implements Cloneable, Serializable, CharSequence {
          * Read new bytes ( usually the internal conversion buffer ).
          * The implementation is allowed to ignore the parameters, 
          * and mutate the chunk if it wishes to implement its own buffering.
+         * 读取数据,将从实现类中读取的数据,存储到参数对应的字节数组cbuf中,读取的长度是len
          */
         public int realReadChars(char cbuf[], int off, int len)
             throws IOException;
@@ -50,6 +53,7 @@ public final class CharChunk implements Cloneable, Serializable, CharSequence {
     public static interface CharOutputChannel {
         /** Send the bytes ( usually the internal conversion buffer ).
          *  Expect 8k output if the buffer is full.
+         *  将参数字节数组中从off开始,一共写出len个,将cbuf中的内容输出到其他地方去,至于输出到哪里,那是实现类的问题
          */
         public void realWriteChars(char cbuf[], int off, int len)
             throws IOException;
