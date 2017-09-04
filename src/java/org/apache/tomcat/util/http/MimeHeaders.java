@@ -104,6 +104,7 @@ public class MimeHeaders {
 
     /**
      * The header fields.
+     * 存储每一个header对象
      */
     private MimeHeaderField[] headers = new
         MimeHeaderField[DEFAULT_HEADER_SIZE];
@@ -116,6 +117,7 @@ public class MimeHeaders {
 
     /**
      * The limit on the number of header fields.
+     * 最多可以允许出现limit个header,超出范围则抛异常
      */
     private int limit = -1;
 
@@ -127,10 +129,11 @@ public class MimeHeaders {
 
     /**
      * Set limit on the number of header fields.
+     * 只要limit个header
      */
     public void setLimit(int limit) {
         this.limit = limit;
-        if (limit > 0 && headers.length > limit && count < limit) {
+        if (limit > 0 && headers.length > limit && count < limit) {//说明limit的数量已经比count总数还多,即其实headers数组虽然大,但是很多空间都是没用的
             // shrink header list array
             MimeHeaderField tmp[] = new MimeHeaderField[limit];
             System.arraycopy(headers, 0, tmp, 0, count);
@@ -180,6 +183,7 @@ public class MimeHeaders {
     
     /**
      * Returns the current number of header fields.
+     * header的总数
      */
     public int size() {
         return count;
@@ -204,6 +208,7 @@ public class MimeHeaders {
     }
 
     /** Find the index of a header with the given name.
+     * 从starting位置开始寻找每一个header
      */
     public int findHeader( String name, int starting ) {
         // We can use a hash - but it's not clear how much
@@ -213,8 +218,8 @@ public class MimeHeaders {
         // of constructing the hashtable
 
         // A custom search tree may be better
-        for (int i = starting; i < count; i++) {
-            if (headers[i].getName().equalsIgnoreCase(name)) {
+        for (int i = starting; i < count; i++) {//从starting位置开始寻找每一个header
+            if (headers[i].getName().equalsIgnoreCase(name)) {//确定name相同,则返回该name对应的下标
                 return i;
             }
         }
@@ -242,19 +247,20 @@ public class MimeHeaders {
     /**
      * Adds a partially constructed field to the header.  This
      * field has not had its name or value initialized.
+     * 创建一个新的header
      */
     private MimeHeaderField createHeader() {
-        if (limit > -1 && count >= limit) {
+        if (limit > -1 && count >= limit) {//最多可以允许出现limit个header,超出范围则抛异常
             throw new IllegalStateException(sm.getString(
                     "headers.maxCountFail", Integer.valueOf(limit)));
         }
-        MimeHeaderField mh;
+        MimeHeaderField mh;//创建新的header
         int len = headers.length;
-        if (count >= len) {
+        if (count >= len) {//需要扩容
             // expand header list array
             int newLength = count * 2;
             if (limit > 0 && newLength > limit) {
-                newLength = limit;
+                newLength = limit;//必须确保limit数量是正确的
             }
             MimeHeaderField tmp[] = new MimeHeaderField[newLength];
             System.arraycopy(headers, 0, tmp, 0, len);
@@ -269,9 +275,10 @@ public class MimeHeaders {
 
     /** Create a new named header , return the MessageBytes
         container for the new value
+        创建一个header,并且返回该header对应的value的对象
     */
     public MessageBytes addValue( String name ) {
-         MimeHeaderField mh = createHeader();
+         MimeHeaderField mh = createHeader();//创建一个新的header
         mh.getName().setString(name);
         return mh.getValue();
     }
@@ -279,6 +286,7 @@ public class MimeHeaders {
     /** Create a new named header using un-translated byte[].
         The conversion to chars can be delayed until
         encoding is known.
+        创建一个header,并且返回该header对应的value的对象
      */
     public MessageBytes addValue(byte b[], int startN, int len)
     {
@@ -288,6 +296,7 @@ public class MimeHeaders {
     }
 
     /** Create a new named header using translated char[].
+     * 创建一个header,并且返回该header对应的value的对象
      */
     public MessageBytes addValue(char c[], int startN, int len)
     {
@@ -302,16 +311,18 @@ public class MimeHeaders {
         if this .
         如果该name不存在，则创建一个name的Field域。值为空。
         如果该name存在，则从第一个找到的位置开始，向后查找，如果还有同名的name则将其删除掉。
+        
+   添加一个key对应的value,因此要先获取该name对应的value对象
     */
     public MessageBytes setValue( String name ) {
-        for ( int i = 0; i < count; i++ ) {
-            if(headers[i].getName().equalsIgnoreCase(name)) {
-                for ( int j=i+1; j < count; j++ ) {
-                    if(headers[j].getName().equalsIgnoreCase(name)) {
-                        removeHeader(j--);
+        for ( int i = 0; i < count; i++ ) {//循环每一个header
+            if(headers[i].getName().equalsIgnoreCase(name)) {//说明有该name存在
+                for ( int j=i+1; j < count; j++ ) {//循环后期是否还有该name
+                    if(headers[j].getName().equalsIgnoreCase(name)) {//说明还依然存在该name
+                        removeHeader(j--);//则移除该name
                     }
                 }
-                return headers[i].getValue();
+                return headers[i].getValue();//获取该name对应的value对象
             }
         }
         MimeHeaderField mh = createHeader();
@@ -324,6 +335,7 @@ public class MimeHeaders {
      * Finds and returns a header field with the given name.  If no such
      * field exists, null is returned.  If more than one such field is
      * in the header, an arbitrary one is returned.
+     * 获取该name对应的value
      */
     public MessageBytes getValue(String name) {
         for (int i = 0; i < count; i++) {
@@ -343,9 +355,9 @@ public class MimeHeaders {
     public MessageBytes getUniqueValue(String name) {
         MessageBytes result = null;
         for (int i = 0; i < count; i++) {
-            if (headers[i].getName().equalsIgnoreCase(name)) {
+            if (headers[i].getName().equalsIgnoreCase(name)) {//说明找到该name了
                 if (result == null) {
-                    result = headers[i].getValue();
+                    result = headers[i].getValue();//获取该name对应的value对象
                 } else {
                     throw new IllegalArgumentException();
                 }
@@ -373,7 +385,7 @@ public class MimeHeaders {
         // warning: rather sticky code; heavily tuned
 
         for (int i = 0; i < count; i++) {
-            if (headers[i].getName().equalsIgnoreCase(name)) {
+            if (headers[i].getName().equalsIgnoreCase(name)) {//删除同名的header
                 removeHeader(i--);
             }
         }
@@ -383,11 +395,11 @@ public class MimeHeaders {
      * reset and swap with last header
      * @param idx the index of the header to remove.
      */
-    private void removeHeader(int idx) {
+    private void removeHeader(int idx) {//删除指定位置的header
         MimeHeaderField mh = headers[idx];
         
         mh.recycle();
-        headers[idx] = headers[count - 1];
+        headers[idx] = headers[count - 1];//将最后一个header添加到该位置,优化移动方式
         headers[count - 1] = mh;
         count--;
     }
@@ -401,12 +413,14 @@ public class MimeHeaders {
     This is less frequesnt than add() -
     we want to keep add O(1).
     找到每一个name第一次出现的Header作为next值
+    
+  因为header中的name可以允许重名的,但是这个迭代器的目的是获取每一个不重名的name
 */
 class NamesEnumerator implements Enumeration {
-    int pos;
-    int size;
-    String next;
-    MimeHeaders headers;
+    int pos;//当前到第几个header了
+    int size;//一共多少个header
+    String next;//next的header的name
+    MimeHeaders headers;//要循环的是哪个header集合
 
     public NamesEnumerator(MimeHeaders headers) {
         this.headers=headers;
@@ -415,10 +429,11 @@ class NamesEnumerator implements Enumeration {
         findNext();
     }
 
+    //设置next的header的name
     private void findNext() {
         next=null;
-        for(  ; pos< size; pos++ ) {
-            next=headers.getName( pos ).toString();
+        for(  ; pos< size; pos++ ) {//不断循环header
+            next=headers.getName( pos ).toString();//获取该name
             for( int j=0; j<pos ; j++ ) {
             	//从头开始查询，到现在为止结束，判断曾经是否有与现在要操作的name相同的，如果存在，则将现在的设置为null，跳出循环。
                 if( headers.getName( j ).equalsIgnoreCase( next )) {
@@ -451,6 +466,7 @@ class NamesEnumerator implements Enumeration {
 
 /** Enumerate the values for a (possibly ) multiple
     value element.
+    因为header中一个name会对应多次值
 */
 class ValuesEnumerator implements Enumeration {
     int pos;//当前查询到第几个表头了
@@ -477,9 +493,9 @@ class ValuesEnumerator implements Enumeration {
      */
     private void findNext() {
         next=null;
-        for( ; pos< size; pos++ ) {
-            MessageBytes n1=headers.getName( pos );
-            if( n1.equalsIgnoreCase( name )) {
+        for( ; pos< size; pos++ ) {//不断寻找每一个header
+            MessageBytes n1=headers.getName( pos );//获取该header的name
+            if( n1.equalsIgnoreCase( name )) {//说明name是相同的,因此获取该name对应的值对象
                 next=headers.getValue( pos );
                 break;
             }
@@ -503,6 +519,7 @@ class ValuesEnumerator implements Enumeration {
     }
 }
 
+//该了类是一个链表,表示一个请求头key=value信息
 class MimeHeaderField {
     // multiple headers with same name - a linked list will
     // speed up name enumerations and search ( both cpu and

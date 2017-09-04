@@ -35,6 +35,8 @@ import org.apache.coyote.Request;
  * well as transfer decoding.
  *
  * @author <a href="mailto:remm@apache.org">Remy Maucherat</a>
+ * 
+ * 对request需要的请求头进行解析,因此构造函数需要传递一个request对象
  */
 public class InternalInputBuffer implements InputBuffer {
 
@@ -43,7 +45,6 @@ public class InternalInputBuffer implements InputBuffer {
 
 
     // ----------------------------------------------------------- Constructors
-
 
     /**
      * Default constructor.
@@ -304,6 +305,8 @@ public class InternalInputBuffer implements InputBuffer {
      * Note: All bytes of the current request should have been already 
      * consumed. This method only resets all the pointers so that we are ready
      * to parse the next HTTP request.
+     * 该方法是说明当前请求已经处理完成了
+     * 当前请求的所有字节应该已经消费完成,这个方法仅仅重置了一些参数,方便我们解析下一个http请求 
      */
     public void nextRequest() {
 
@@ -311,11 +314,11 @@ public class InternalInputBuffer implements InputBuffer {
         request.recycle();
 
         // Copy leftover bytes to the beginning of the buffer
-        if (lastValid - pos > 0) {
+        if (lastValid - pos > 0) {//说明还有信息
             int npos = 0;
             int opos = pos;
             while (lastValid - opos > opos - npos) {
-                System.arraycopy(buf, opos, buf, npos, opos - npos);
+                System.arraycopy(buf, opos, buf, npos, opos - npos);//将剩余的内容存储到buf的0位置开始
                 npos += pos;
                 opos += pos;
             }
@@ -394,9 +397,9 @@ public class InternalInputBuffer implements InputBuffer {
         //
         // Reading the method name
         // Method name is always US-ASCII
-        //
 
-        boolean space = false;
+        //结构 method  url HTTP/1.1
+        boolean space = false;//true表示发现了空格
 
         while (!space) {//找到第一个空格位置没,即获取get
 
@@ -412,7 +415,7 @@ public class InternalInputBuffer implements InputBuffer {
                         sm.getString("iib.invalidmethod"));
             }
             // Spec says single SP but it also says be tolerant of HT
-            if (buf[pos] == Constants.SP || buf[pos] == Constants.HT) {
+            if (buf[pos] == Constants.SP || buf[pos] == Constants.HT) {//寻找空格或者\t字符
                 space = true;
                 request.method().setBytes(buf, start, pos - start);//将get赋值给method属性
             }
@@ -423,16 +426,16 @@ public class InternalInputBuffer implements InputBuffer {
 
         
         // Spec says single SP but also says be tolerant of multiple and/or HT
-        //过滤掉get后面多余的空格,原则上只有一个空格,但是肯呢过会更多，所以过滤掉空格
+        //过滤掉get后面多余的空格,原则上只有一个空格,但是可能会更多，所以过滤掉空格
         while (space) {
             // Read new bytes if needed
             if (pos >= lastValid) {
                 if (!fill())
                     throw new EOFException(sm.getString("iib.eof.error"));
             }
-            if (buf[pos] == Constants.SP || buf[pos] == Constants.HT) {
+            if (buf[pos] == Constants.SP || buf[pos] == Constants.HT) {//说明遇见空格或者\t
                 pos++;
-            } else {
+            } else {//说明空格已经解析结束
                 space = false;
             }
         }
@@ -447,8 +450,9 @@ public class InternalInputBuffer implements InputBuffer {
         // Reading the URI
         //
 
-        boolean eol = false;
+        boolean eol = false;//true表示遇见了回车换行
 
+        //接续url
         while (!space) {//找到下一个空格为止,结束
 
             // Read new bytes if needed
@@ -458,7 +462,7 @@ public class InternalInputBuffer implements InputBuffer {
             }
 
             // Spec says single SP but it also says be tolerant of HT
-            if (buf[pos] == Constants.SP || buf[pos] == Constants.HT) {
+            if (buf[pos] == Constants.SP || buf[pos] == Constants.HT) {//只要不是空格或者\t
                 space = true;//找到空格了,结束循环
                 end = pos;
             } else if ((buf[pos] == Constants.CR) 
@@ -467,7 +471,7 @@ public class InternalInputBuffer implements InputBuffer {
                 eol = true;//HTTP/0.9版本没有最后一个关于协议的部分,因此解析uri的时候是到回车结束
                 space = true;
                 end = pos;
-            } else if ((buf[pos] == Constants.QUESTION) 
+            } else if ((buf[pos] == Constants.QUESTION) //说明遇见了?字符
                        && (questionPos == -1)) {//如果uri中有?号,则标示出该问号的位置,并且以第一次出现?号为主
                 questionPos = pos;
             }
@@ -485,6 +489,7 @@ public class InternalInputBuffer implements InputBuffer {
             request.requestURI().setBytes(buf, start, end - start);
         }
 
+        //继续过滤多余空格
         // Spec says single SP but also says be tolerant of multiple and/or HT 过滤剩余空格
         while (space) {
             // Read new bytes if needed
@@ -559,6 +564,8 @@ public class InternalInputBuffer implements InputBuffer {
      * @return false after reading a blank line (which indicates that the
      * HTTP header parsing is done
      * 每次调用该方法,解析得到一个header的key:value
+     * 
+     * 设置一个header的key=value内容
      */
     public boolean parseHeader()
         throws IOException {
@@ -566,7 +573,6 @@ public class InternalInputBuffer implements InputBuffer {
         //
         // Check for blank line
         //
-
         byte chr = 0;
         while (true) {//过滤开始前很多\r信息
 
@@ -583,7 +589,7 @@ public class InternalInputBuffer implements InputBuffer {
                     pos++;
                     return false;
                 }
-            } else {
+            } else {//说明此时该字符是正常字符,因此退出循环,处理该字符,因为现在在做准备阶段,是在做前期过滤 若干个回车换行操作
                 break;
             }
 
@@ -600,7 +606,7 @@ public class InternalInputBuffer implements InputBuffer {
         //
 
         boolean colon = false;
-        MessageBytes headerValue = null;
+        MessageBytes headerValue = null;//此时该对象表示header的value要对应的对象
 
         while (!colon) {//查找key:value中的:号位置
 
@@ -613,7 +619,7 @@ public class InternalInputBuffer implements InputBuffer {
             if (buf[pos] == Constants.COLON) {//找到:号,则退出循环,冒号前的字符为start开始,pos-start长度,生成key,同时返回该key对应的value对象引用
                 colon = true;
                 //创建一个key-value形式的header头对象，将name值填充后，将空的value对象返回。后续会将其赋值。
-                headerValue = headers.addValue(buf, start, pos - start);//说明获取header的头name
+                headerValue = headers.addValue(buf, start, pos - start);//说明获取header的头name,即创建一个name,返回该value对应的对象
             }
             chr = buf[pos];
             if ((chr >= Constants.A) && (chr <= Constants.Z)) {//大小字母转成小写字母
@@ -623,6 +629,7 @@ public class InternalInputBuffer implements InputBuffer {
             pos++;
 
         }
+        //此时已经找到了:号位置,因此start就是pos冒号位置
 
         // Mark the current buffer position 重新记录start位置为:号后面的value第一个字节位置
         start = pos;
@@ -640,7 +647,7 @@ public class InternalInputBuffer implements InputBuffer {
         while (validLine) {//是否为有效行,每一行都要进行如此循环处理
 
         	/**
-        	 * 1.首先过滤所有空格
+        	 * 1.首先过滤所有空格,因为冒号后面可能追加了很多空格,小过滤掉这部分
         	 */
             boolean space = true;
 
@@ -653,7 +660,7 @@ public class InternalInputBuffer implements InputBuffer {
                         throw new EOFException(sm.getString("iib.eof.error"));
                 }
 
-                if ((buf[pos] == Constants.SP) || (buf[pos] == Constants.HT)) {
+                if ((buf[pos] == Constants.SP) || (buf[pos] == Constants.HT)) {//说明此时一直是
                     pos++;
                 } else {
                     space = false;
@@ -719,7 +726,7 @@ public class InternalInputBuffer implements InputBuffer {
         }
 //找到一行的所有的信息后，将其设置为value的值，即赋值过程
         // Set the header value
-        headerValue.setBytes(buf, start, realPos - start);
+        headerValue.setBytes(buf, start, realPos - start);//设置value的具体信息内容
 
         return true;
 

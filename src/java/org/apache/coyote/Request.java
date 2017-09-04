@@ -88,13 +88,14 @@ public final class Request {
 
     private MessageBytes schemeMB = MessageBytes.newInstance();
 
+    //解析http的请求头的第一行信息,可以获取到的内容 即 method  uri HTTP/1.1
     private MessageBytes methodMB = MessageBytes.newInstance();//method
     private MessageBytes unparsedURIMB = MessageBytes.newInstance();//整个请求头中的uri,例如/aa.html?key=value
     private MessageBytes uriMB = MessageBytes.newInstance();//请求头中uri的？之前的字符串，如果没有?号，则全部uri都是，后期会做处理，即第一个/之后的便是uri
-    private MessageBytes decodedUriMB = MessageBytes.newInstance();
-    private MessageBytes queryMB = MessageBytes.newInstance();//请求头中uri的?号之后的字符串
+    private MessageBytes queryMB = MessageBytes.newInstance();//请求头中uri的?号之后的字符串,即key=value&key=value
     private MessageBytes protoMB = MessageBytes.newInstance();//请求头中最后一部分，即协议字符串
-
+    private MessageBytes decodedUriMB = MessageBytes.newInstance();
+    
     // remote address/host
     private MessageBytes remoteAddrMB = MessageBytes.newInstance();
     private MessageBytes localNameMB = MessageBytes.newInstance();
@@ -141,7 +142,7 @@ public final class Request {
 
     private int bytesRead=0;
     // Time of the request - usefull to avoid repeated calls to System.currentTime
-    private long startTime = 0L;
+    private long startTime = 0L;//请求的开始时间,从解析header头开始计时
     private int available = 0;
 
     private RequestInfo reqProcessorMX=new RequestInfo(this);
