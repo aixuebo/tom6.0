@@ -27,7 +27,7 @@ import org.apache.coyote.http11.InputFilter;
 
 /**
  * Identity input filter.
- * 
+ * 说明使用contextLength方式接收http请求,即在请求中包含了请求内容大小
  * @author Remy Maucherat
  */
 public class IdentityInputFilter implements InputFilter {

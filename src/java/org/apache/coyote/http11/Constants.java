@@ -150,6 +150,7 @@ public final class Constants {
         ByteChunk.convertToBytes("404");
     
 
+    //定义默认的filter在数组中的顺序
     /**
      * Identity filters (input and output).
      */
@@ -169,13 +170,13 @@ public final class Constants {
 
 
     /**
-     * GZIP filter (output).
+     * GZIP filter (output).用于输出
      */
     public static final int GZIP_FILTER = 3;
 
 
     /**
-     * Buffered filter (input)
+     * Buffered filter (input) 用于输入
      */
     public static final int BUFFERED_FILTER = 3;
 

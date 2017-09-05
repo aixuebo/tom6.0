@@ -77,6 +77,7 @@ public class Http11Processor implements ActionHook {
     /*
      * Tracks how many internal filters are in the filter library so they
      * are skipped when looking for pluggable filters. 
+     * 记录内部有多少个过滤器filter被定义
      */
     private int pluggableFilterIndex = Integer.MAX_VALUE;
 
@@ -175,6 +176,7 @@ public class Http11Processor implements ActionHook {
     /**
      * Content delimitator for the request (if false, the connection will
      * be closed at the end of the request).
+     * 用于chunked这个请求头,说明当连接结束的时候,不用关闭,等待下一个连接
      */
     protected boolean contentDelimitation = true;
 
@@ -553,7 +555,6 @@ public class Http11Processor implements ActionHook {
 
     /**
      * Checks if any entry in the string array starts with the specified value
-     *
      * @param sArray the StringArray
      * @param value string
      * 查看第一个数组中某一项内容是否以第二个参数开头
@@ -773,6 +774,7 @@ public class Http11Processor implements ActionHook {
         rp.setStage(org.apache.coyote.Constants.STAGE_PARSE);
 
         // Set the remote address
+        //设置host ip port,两对,因此是6个
         remoteAddr = null;
         remoteHost = null;
         localAddr = null;
@@ -1348,8 +1350,8 @@ public class Http11Processor implements ActionHook {
 
         // Parse content-length header
         long contentLength = request.getContentLengthLong();
-        if (contentLength >= 0 && !contentDelimitation) {
-            inputBuffer.addActiveFilter(inputFilters[Constants.IDENTITY_FILTER]);
+        if (contentLength >= 0 && !contentDelimitation) {//说明使用contextLength方式接收http请求
+            inputBuffer.addActiveFilter(inputFilters[Constants.IDENTITY_FILTER]);//激活该方式
             contentDelimitation = true;
         }
 
@@ -1675,6 +1677,7 @@ public class Http11Processor implements ActionHook {
 
     /**
      * Initialize standard input and output filters.
+     * 定义默认的filter在数组中的顺序,这里只是定义了默认的filter,而不是真的使用这些filter
      */
     protected void initializeFilters() {
 
@@ -1707,15 +1710,18 @@ public class Http11Processor implements ActionHook {
      *
      * @return false if the encoding was not found (which would mean it is
      * unsupported)
+     * 为当前请求添加一个filter
+     * @inputFilters 表示已经存在的filter集合
+     * @encodingName 表示准备添加的filter
      */
     protected boolean addInputFilter(InputFilter[] inputFilters,String encodingName) {
-        if (encodingName.equals("identity")) {
+        if (encodingName.equals("identity")) {//说明该filter已经存在
             // Skip
-        } else if (encodingName.equals("chunked")) {
-            inputBuffer.addActiveFilter(inputFilters[Constants.CHUNKED_FILTER]);
+        } else if (encodingName.equals("chunked")) {//虽然该filter也已经存在,但是依然额外添加,则要将其设置为激活状态
+            inputBuffer.addActiveFilter(inputFilters[Constants.CHUNKED_FILTER]);//获取该chunked的filter具体的下标对应的filter对象
             contentDelimitation = true;
         } else {
-            for (int i = pluggableFilterIndex; i < inputFilters.length; i++) {
+            for (int i = pluggableFilterIndex; i < inputFilters.length; i++) {//激活一个filter
                 if (inputFilters[i].getEncodingName().toString().equals(encodingName)) {
                     inputBuffer.addActiveFilter(inputFilters[i]);
                     return true;

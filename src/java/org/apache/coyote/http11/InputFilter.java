@@ -34,7 +34,8 @@ public interface InputFilter extends InputBuffer {
 
     /**
      * Read bytes.
-     * 
+     * 读取信息,写出到chunk中
+     * request表示读取该信息的请求对象
      * @return Number of bytes read.
      */
     public int doRead(ByteChunk chunk, Request unused)
@@ -45,6 +46,7 @@ public interface InputFilter extends InputBuffer {
      * Some filters need additional parameters from the request. All the 
      * necessary reading can occur in that method, as this method is called
      * after the request header processing is complete.
+     * 一些filter需要追加参数
      */
     public void setRequest(Request request);
 
@@ -63,6 +65,7 @@ public interface InputFilter extends InputBuffer {
 
     /**
      * Set the next buffer in the filter pipeline.
+     * 设置该filter下一阶段的管道中的输入流
      */
     public void setBuffer(InputBuffer buffer);
 

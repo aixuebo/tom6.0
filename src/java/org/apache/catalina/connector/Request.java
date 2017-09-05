@@ -334,12 +334,14 @@ public class Request
 
     /**
      * The requested session ID (if any) for this request.
+     * 设置sessionId
      */
     protected String requestedSessionId = null;
 
 
     /**
      * Was the requested session ID received in a URL?
+     * true表示sessionId在url中已经存在了,比如;jsessionid=1234
      */
     protected boolean requestedSessionURL = false;
 
@@ -1762,6 +1764,7 @@ public class Request
      * HTTP Connector, when it parses the request headers.
      *
      * @param flag The new flag
+     * true表示sessionId在url中已经存在了,比如;jsessionid=1234
      */
     public void setRequestedSessionURL(boolean flag) {
 

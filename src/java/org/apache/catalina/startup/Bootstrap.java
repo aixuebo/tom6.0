@@ -387,7 +387,7 @@ public final class Bootstrap {
      * @param args Command line arguments to be processed
      */
     public static void main(String args[]) {
-    	System.setProperty("catalina.home","D:\\workspace\\tomcat\\src");
+    	System.setProperty("catalina.home","E:\\mm\\document\\workspaceApache\\tomcat\\src");
         if (daemon == null) {
             daemon = new Bootstrap();
             try {

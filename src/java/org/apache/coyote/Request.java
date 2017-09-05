@@ -102,7 +102,7 @@ public final class Request {
     private MessageBytes remoteHostMB = MessageBytes.newInstance();
     private MessageBytes localAddrMB = MessageBytes.newInstance();
      
-    private MimeHeaders headers = new MimeHeaders();
+    private MimeHeaders headers = new MimeHeaders();//存储header请求头内容
 
     private MessageBytes instanceId = MessageBytes.newInstance();
 
@@ -127,9 +127,9 @@ public final class Request {
     /**
      * HTTP specific fields. (remove them ?)
      */
-    private long contentLength = -1;
-    private MessageBytes contentTypeMB = null;
-    private String charEncoding = null;
+    private long contentLength = -1;//从header中读取content-length对应的值
+    private MessageBytes contentTypeMB = null;//从header中读取content-type对应的值-----text/html; charset="UTF-8
+    private String charEncoding = null;//从header中读取content-type对应的值text/html; charset="UTF-8,从而提取出客户端提交的编码方式
     private Cookies cookies = new Cookies(headers);
     private Parameters parameters = new Parameters();
 
@@ -140,12 +140,12 @@ public final class Request {
     private Response response;
     private ActionHook hook;
 
-    private int bytesRead=0;
+    private int bytesRead=0;//已经读取了多少个字节内容
     // Time of the request - usefull to avoid repeated calls to System.currentTime
     private long startTime = 0L;//请求的开始时间,从解析header头开始计时
     private int available = 0;
 
-    private RequestInfo reqProcessorMX=new RequestInfo(this);
+    private RequestInfo reqProcessorMX = new RequestInfo(this);
     // ------------------------------------------------------------- Properties
 
 
@@ -261,6 +261,7 @@ public final class Request {
 
     /**
      * Get the character encoding used for this request.
+     * 从header中读取content-type对应的值text/html; charset="UTF-8,从而提取出客户端提交的编码方式
      */
     public String getCharacterEncoding() {
 
@@ -277,12 +278,13 @@ public final class Request {
         this.charEncoding = enc;
     }
 
-
+    //从header中读取content-length对应的值
     public void setContentLength(int len) {
         this.contentLength = len;
     }
 
 
+    //从header中读取content-length对应的值
     public int getContentLength() {
         long length = getContentLengthLong();
 
@@ -292,6 +294,7 @@ public final class Request {
         return -1;
     }
 
+    //从header中读取content-length对应的值
     public long getContentLengthLong() {
         if( contentLength > -1 ) return contentLength;
 
@@ -301,6 +304,7 @@ public final class Request {
         return contentLength;
     }
 
+    //从header中读取content-type对应的值
     public String getContentType() {
         contentType();
         if ((contentTypeMB == null) || contentTypeMB.isNull()) 
@@ -309,23 +313,25 @@ public final class Request {
     }
 
 
+    //从header中读取content-type对应的值
     public void setContentType(String type) {
         contentTypeMB.setString(type);
     }
 
 
+    //从header中读取content-type对应的值
     public MessageBytes contentType() {
         if (contentTypeMB == null)
             contentTypeMB = headers.getValue("content-type");
         return contentTypeMB;
     }
 
-
+    //从header中读取content-type对应的值
     public void setContentType(MessageBytes mb) {
         contentTypeMB=mb;
     }
 
-
+    //从header中读取name对应的值
     public String getHeader(String name) {
         return headers.getHeader(name);
     }
@@ -425,7 +431,7 @@ public final class Request {
      */
     public int doRead(ByteChunk chunk) 
         throws IOException {
-        int n = inputBuffer.doRead(chunk, this);
+        int n = inputBuffer.doRead(chunk, this);//真正开始读取数据内容
         if (n > 0) {
             bytesRead+=n;
         }

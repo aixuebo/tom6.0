@@ -195,6 +195,7 @@ public interface Context extends Container {
      * 
      * @return  The value of the default session cookie name or null if not
      *          specified
+     * sessionId的name在cookie中叫什么
      */
     public String getSessionCookieName();
     

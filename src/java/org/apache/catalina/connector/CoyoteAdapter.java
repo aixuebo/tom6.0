@@ -447,7 +447,7 @@ public class CoyoteAdapter implements Adapter {
         // Parse the path parameters. This will:
         //   - strip out the path parameters
         //   - convert the decodedURI to bytes
-        parsePathParameters(req, request);
+        parsePathParameters(req, request);//抽取/path;name=value;name2=value2/这种参数信息
 
         // URI decoding
         // %xx decoding of the URL
@@ -595,6 +595,7 @@ public class CoyoteAdapter implements Adapter {
      * interested in the session ID that will be in this form. Other parameters
      * can safely be ignored.
      * 
+     * 抽取/path;name=value;name2=value2/这种参数信息
      * @param req
      * @param request
      */
@@ -624,7 +625,7 @@ public class CoyoteAdapter implements Adapter {
 
         boolean warnedEncoding = false;
 
-        while (semicolon > -1) {
+        while (semicolon > -1) {//因为url中包含;aa=bb这种参数,比如http://www.baidu.com:80/aaa;cc=dd/bbb.html?aa=b&cc=dd#xxx
             // Parse path param, and extract it from the decoded request URI
             int start = uriBC.getStart();
             int end = uriBC.getEnd();
@@ -632,7 +633,7 @@ public class CoyoteAdapter implements Adapter {
             int pathParamStart = semicolon + 1;
             int pathParamEnd = ByteChunk.findBytes(uriBC.getBuffer(),
                     start + pathParamStart, end,
-                    new byte[] {';', '/'});
+                    new byte[] {';', '/'});//从;后面开始查找,找到出现;或者/的位置
 
             String pv = null;
 
@@ -678,7 +679,7 @@ public class CoyoteAdapter implements Adapter {
             }
 
             if (pv != null) {
-                int equals = pv.indexOf('=');
+                int equals = pv.indexOf('=');//获取key=value这种参数
                 if (equals > -1) {
                     String name = pv.substring(0, equals);
                     String value = pv.substring(equals + 1); 
@@ -701,24 +702,25 @@ public class CoyoteAdapter implements Adapter {
 
     /**
      * Parse session id in URL.
+     * 在url中解析sessionid
      * @deprecated Not used since 6.0.33
      */
     @Deprecated
     protected void parseSessionId(org.apache.coyote.Request req, Request request) {
 
-        parsePathParameters(req, request);
+        parsePathParameters(req, request);//抽取/path;name=value;name2=value2;jsessionid=1234/这种参数信息
 //判断sessionId在path的参数中存在
         String sessionID = request.getPathParameter(Globals.SESSION_PARAMETER_NAME);
         if (sessionID != null) {
             request.setRequestedSessionId(sessionID);
-            request.setRequestedSessionURL(true);
+            request.setRequestedSessionURL(true);//true表示sessionId在url中已经存在了,比如;jsessionid=1234
         } else {
-            clearRequestedSessionURL(request);
+            clearRequestedSessionURL(request);//说明session不存在
         }
 
     }
 
-
+    //说明session不存在
     private void clearRequestedSessionURL(Request request) {
         request.setRequestedSessionId(null);
         request.setRequestedSessionURL(false);
@@ -727,6 +729,7 @@ public class CoyoteAdapter implements Adapter {
 
     /**
      * Parse session id in URL.
+     * 在url中解析sessionid
      */
     protected void parseSessionCookiesId(org.apache.coyote.Request req, Request request) {
 
@@ -969,6 +972,7 @@ public class CoyoteAdapter implements Adapter {
      * present in the URI.
      * 
      * @param uriMB URI to be checked (should be chars)
+     * 校验格式化
      */
     public static boolean checkNormalize(MessageBytes uriMB) {
 
@@ -1025,12 +1029,15 @@ public class CoyoteAdapter implements Adapter {
     /**
      * Copy an array of bytes to a different position. Used during 
      * normalization.
+     * 操作b数组.将src的位置开始copy,copy到dest位置上,一共copy len个字节
      */
     protected static void copyBytes(byte[] b, int dest, int src, int len) {
         for (int pos = 0; pos < len; pos++) {
             b[pos + dest] = b[pos + src];
         }
     }
+    
+    //获取cookie中的name,被用于传递session
     private String getSessionCookieName(Context context) {
         
         String result = null;

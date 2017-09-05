@@ -159,6 +159,7 @@ public class InternalInputBuffer implements InputBuffer {
     /**
      * Filter library.
      * Note: Filter[0] is always the "chunked" filter.
+     * 过滤器集合
      */
     protected InputFilter[] filterLibrary;
 
@@ -245,22 +246,23 @@ public class InternalInputBuffer implements InputBuffer {
 
     /**
      * Add an input filter to the filter library.
+     * 添加一个活跃的过滤器,让过滤器产生一个链表
      */
     public void addActiveFilter(InputFilter filter) {
 
         if (lastActiveFilter == -1) {
             filter.setBuffer(inputStreamInputBuffer);
         } else {
-            for (int i = 0; i <= lastActiveFilter; i++) {
+            for (int i = 0; i <= lastActiveFilter; i++) {//校验是否该filter已经添加过了
                 if (activeFilters[i] == filter)
                     return;
             }
-            filter.setBuffer(activeFilters[lastActiveFilter]);
+            filter.setBuffer(activeFilters[lastActiveFilter]);//设置该filter的流
         }
 
-        activeFilters[++lastActiveFilter] = filter;
+        activeFilters[++lastActiveFilter] = filter;//添加活跃的filter
 
-        filter.setRequest(request);
+        filter.setRequest(request);//为该filter设置request
 
     }
 
@@ -742,10 +744,10 @@ public class InternalInputBuffer implements InputBuffer {
     public int doRead(ByteChunk chunk, Request req) 
         throws IOException {
 
-        if (lastActiveFilter == -1)
+        if (lastActiveFilter == -1) //说明没有获取的filter
             return inputStreamInputBuffer.doRead(chunk, req);
         else
-            return activeFilters[lastActiveFilter].doRead(chunk,req);
+            return activeFilters[lastActiveFilter].doRead(chunk,req);//从最后一个过滤器开始过滤数据
 
     }
 

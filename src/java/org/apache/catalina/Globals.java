@@ -275,6 +275,7 @@ public final class Globals {
     /**
      * The name of the cookie used to pass the session identifier back
      * and forth with the client.
+     * cookie中的name,被用于传递session
      */
     public static final String SESSION_COOKIE_NAME =
         System.getProperty("org.apache.catalina.SESSION_COOKIE_NAME",

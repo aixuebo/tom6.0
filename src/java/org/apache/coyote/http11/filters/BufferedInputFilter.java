@@ -26,6 +26,7 @@ import org.apache.tomcat.util.buf.ByteChunk;
 /**
  * Input filter responsible for reading and buffering the request body, so that
  * it does not interfere with client SSL handshake messages.
+ * 该类当request设置后,就已经读取完数据,后续真正读取的是那时候缓存的内容
  */
 public class BufferedInputFilter implements InputFilter {
 
@@ -37,9 +38,9 @@ public class BufferedInputFilter implements InputFilter {
 
     // ----------------------------------------------------- Instance Variables
 
-    private ByteChunk buffered = null;//最终存储数据
+    private ByteChunk buffered = null;//最终存储buffer底层流的所有数据
     private ByteChunk tempRead = new ByteChunk(1024);//临时存储数据
-    private InputBuffer buffer;
+    private InputBuffer buffer;//在什么流基础上进行的包装
     private boolean hasRead = false;
 
 
@@ -74,7 +75,7 @@ public class BufferedInputFilter implements InputFilter {
     public void setRequest(Request request) {
         // save off the Request body
         try {
-            while (buffer.doRead(tempRead, request) >= 0) {//不断的从request中获取信息,存储在临时的tempRead中
+            while (buffer.doRead(tempRead, request) >= 0) {//不断的从buffer中获取信息,存储在临时的tempRead中
                 buffered.append(tempRead);//将临时存储的内容写出到buffered中
                 tempRead.recycle();
             }
@@ -85,28 +86,30 @@ public class BufferedInputFilter implements InputFilter {
 
     /**
      * Fills the given ByteChunk with the buffered request body.
+     * 因为在setRequest方法的时候,已经将底层的内容缓存到buffered了,因此不需要再进行doRead调用,而是直接从buffered中获取
      */
     public int doRead(ByteChunk chunk, Request request) throws IOException {
         if (hasRead || buffered.getLength() <= 0) {
             return -1;
         } else {
             chunk.setBytes(buffered.getBytes(), buffered.getStart(),
-                           buffered.getLength());
-            hasRead = true;
+                           buffered.getLength());//直接从buffered中获取数据,追加到chunk中
+            hasRead = true;//设置说明已经读取完了
         }
         return chunk.getLength();
     }
 
+    //设置该filter的基础流
     public void setBuffer(InputBuffer buffer) {
         this.buffer = buffer;
     }
 
     public void recycle() {
         if (buffered != null) {
-            if (buffered.getBuffer().length > 65536) {
+            if (buffered.getBuffer().length > 65536) {//说明缓冲区的内容太多了,因此设置为null,下次重新在创建新的
                 buffered = null;
             } else {
-                buffered.recycle();
+                buffered.recycle();//清空缓冲流信息
             }
         }
         tempRead.recycle();
@@ -122,6 +125,7 @@ public class BufferedInputFilter implements InputFilter {
         return 0;
     }
 
+    //表示缓冲区还有多少字节未用
     public int available() {
         return buffered.getLength();
     }
