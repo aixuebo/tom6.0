@@ -1332,7 +1332,7 @@ public final class Mapper {
 
     // ------------------------------------------------- MapElement Inner Class
 
-
+    //记录一个key以及一个对象value
     protected static abstract class MapElement {
 
         public String name = null;
@@ -1347,14 +1347,14 @@ public final class Mapper {
     protected static final class Host
         extends MapElement {
 
-        public ContextList contextList = null;
+        public ContextList contextList = null;//说明一个host下多个Context
 
     }
 
 
     // ------------------------------------------------ ContextList Inner Class
 
-
+    //说明一个host下多个Context
     protected static final class ContextList {
 
         public Context[] contexts = new Context[0];
@@ -1365,7 +1365,7 @@ public final class Mapper {
 
     // ---------------------------------------------------- Context Inner Class
 
-
+    //表示一个具体的项目
     protected static final class Context
         extends MapElement {
 
@@ -1383,7 +1383,7 @@ public final class Mapper {
 
     // ---------------------------------------------------- Wrapper Inner Class
 
-
+    //表示一个具体的servlet
     protected static class Wrapper
         extends MapElement {
 
